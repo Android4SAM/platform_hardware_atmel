@@ -118,7 +118,9 @@ static int copy_heo_src_content(hwc_layer_t *cur_layer,
     uint8_t *dst_addr = (uint8_t *)win->buffers[win->buf_index];
     uint8_t *src_addr = (uint8_t *)prev_handle->base;
     uint32_t cpy_size = 0;
-	uint32_t BPP = 0;
+    uint32_t BPP = 0;
+    int w = win->video_width;
+    int h = win->video_height;
 
 	switch (prev_handle->iFormat) {
 		/* Note: The format is HAL_PIXEL_FORMAT_YV12
@@ -127,10 +129,12 @@ static int copy_heo_src_content(hwc_layer_t *cur_layer,
               * So here should be ((prev_handle->uiBpp * 3) / (8 * 2 * 2))
               */
 		case HAL_PIXEL_FORMAT_YV12:
-			BPP = prev_handle->uiBpp *3 / (8 * 2 * 2);
+			cpy_size = w * prev_handle->uiBpp * 3 / (8 * 2 * 2) * h;
+			h = 1;
 			break;
 		case HAL_PIXEL_FORMAT_YCbCr_422_I:
-			BPP = prev_handle->uiBpp / 8;
+			cpy_size = w * prev_handle->uiBpp / 8 * h;
+			h = 1;
 			break;
 		default :
 			LOGE("%s, heo don't support this format", __func__);
@@ -138,17 +142,9 @@ static int copy_heo_src_content(hwc_layer_t *cur_layer,
 	}
 
     for (int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
-        int w = win->video_width;
-        int h = win->video_height;
         uint8_t *cur_dst_addr = dst_addr;
         uint8_t *cur_src_addr = src_addr;
-        if (1) {
-            cpy_size= (w * BPP) * h;
-            h = 1;
-        } else {
-            cpy_size= w * BPP;
-        }
-		
+
         for (int j = 0; j < h ; j++) {
             memcpy(cur_dst_addr, cur_src_addr, cpy_size);
             cur_dst_addr = &cur_dst_addr[cpy_size];
