@@ -703,7 +703,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
     int status = 0;
-    int NUM_OF_WIN = 0;
+    int NUM_OF_WIN = 0, NUM_OF_HEO_WIN = 0;
     DIR*    dir;
     struct dirent* de;    
     struct hwc_win_info_t *win;
@@ -765,13 +765,25 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     while ((de = readdir(dir))) {
         if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..") || !strcmp(de->d_name, "fb0"))
             continue;
-        if (v4l2_overlay_open(&(dev->win_heo[dev->num_of_avail_heo]), de->d_name) < 0)
-            continue;
-        dev->num_of_avail_heo++;
+		if (v4l2_overlay_open(&(dev->win_heo[NUM_OF_HEO_WIN]), de->d_name) < 0)
+			continue;
+		NUM_OF_HEO_WIN++;
         LOGD("We find %d'th heo layer: %s", dev->num_of_avail_heo, de->d_name);
     }
     closedir(dir);
 
+    if (property_get("ro.hwc.ovl_heo_num", value, "1") > 0) {
+	dev->num_of_avail_heo = SAM_MIN(NUM_OF_HEO_WIN, atoi(value));
+    } else {
+        dev->num_of_avail_heo = NUM_OF_HEO_WIN;
+    }
+
+    for (int i = 0; i < NUM_OF_HEO_WIN - dev->num_of_avail_heo; i++) {
+        if (v4l2_overlay_close(&(dev->win_heo[dev->num_of_avail_heo + i])) == 0) {
+            LOGV("%s:: Closing heo layer %d device ", __func__, i);
+        }
+    }
+	
     /* get default window config */
     if (window_get_global_lcd_info(&dev->lcd_info) < 0) {
         LOGE("%s::window_get_global_lcd_info is failed : %s",
