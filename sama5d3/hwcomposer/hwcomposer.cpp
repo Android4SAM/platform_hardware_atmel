@@ -589,7 +589,7 @@ static int hwc_set(hwc_composer_device_t *dev,
     }
 
     /* copy the content of hardware layers here */
-    for (uint32_t i = 0; i < ctx->num_of_avail_ovl; i++) {
+    for (int32_t i = ctx->num_of_avail_ovl-1; i >= 0; i--) {
         win = &ctx->win[i];
         if (win->status == HWC_WIN_RESERVED) {
             cur = &list->hwLayers[win->layer_index];
