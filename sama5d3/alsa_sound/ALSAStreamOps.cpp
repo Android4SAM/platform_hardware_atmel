@@ -158,11 +158,25 @@ status_t ALSAStreamOps::setParameters(const String8& keyValuePairs)
     String8 key = String8(AudioParameter::keyRouting);
     status_t status = NO_ERROR;
     int device;
-    LOGV("setParameters() %s", keyValuePairs.string());
+    int source;
+    LOGV("AudioStreamOps::setParameters() %s", keyValuePairs.string());
+
+    // read source before device so that it is upto date when doRouting() is called
+    if (param.getInt(String8(AudioParameter::keyInputSource), source) == NO_ERROR) {
+        //mSource = source;
+        param.remove(String8(AudioParameter::keyInputSource));
+    }
 
     if (param.getInt(key, device) == NO_ERROR) {
-        AutoMutex lock(mLock);
-        mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());
+        LOGV("set input routing %x", device);
+        if (device & (device - 1)) {
+            status = BAD_VALUE;
+        } else {
+            //mDevices = device;
+            if (device != 0) {
+                status = mParent->mALSADevice->route(mHandle, (uint32_t)device, mParent->mode());;
+            }
+        }
         param.remove(key);
     }
 

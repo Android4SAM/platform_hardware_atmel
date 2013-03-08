@@ -282,7 +282,7 @@ size_t AudioHardwareALSA::getInputBufferSize(uint32_t sampleRate, int format, in
         LOGW("getInputBufferSize bad format: %d", format);
         return 0;
     }
-    if (channelCount != 1) {
+    if (channelCount != 1 && channelCount != 2) {
         LOGW("getInputBufferSize bad channel count: %d", channelCount);
         return 0;
     }
