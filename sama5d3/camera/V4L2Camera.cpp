@@ -8,7 +8,7 @@
 ** You may obtain a copy of the License at
 **
 **     http://www.apache.org/licenses/LICENSE-2.0
-** 
+**
 ** Unless required by applicable law or agreed to in writing, software
 ** distributed under the License is distributed on an "AS IS" BASIS,
 ** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,7 +22,7 @@
 #include "V4L2Camera.h"
 
 extern "C" {
-    #include "jpeglib.h"
+#include "jpeglib.h"
 }
 
 using namespace android;
@@ -39,12 +39,12 @@ using namespace android;
         LOGE("%s::%d fail, errno: %s, m_camera_id = %d\n",           \
              __func__,__LINE__, strerror(errno), m_camera_id);       \
         return NULL;                                                 \
-    }	
+    }
 
 namespace android {
 
 // ======================================================================
-// Camera controls	
+// Camera controls
 
 static struct timeval time_start;
 static struct timeval time_stop;
@@ -295,10 +295,10 @@ static int isi_v4l2_querybuf(int fp, struct ISI_buffer *buffer, enum v4l2_buf_ty
 
     buffer->length = v4l2_buf.length;
     if ((buffer->start = (char *)mmap(0, v4l2_buf.length,
-                                         PROT_READ | PROT_WRITE, MAP_SHARED,
-                                         fp, v4l2_buf.m.offset)) < 0) {
-         LOGE("%s %d] mmap() failed\n",__func__, __LINE__);
-         return -1;
+                                      PROT_READ | PROT_WRITE, MAP_SHARED,
+                                      fp, v4l2_buf.m.offset)) < 0) {
+        LOGE("%s %d] mmap() failed\n",__func__, __LINE__);
+        return -1;
     }
 
     LOGI("%s: buffer->start = %p v4l2_buf.length = %d",
@@ -359,7 +359,7 @@ static int isi_v4l2_dqbuf(int fp)
     struct v4l2_buffer v4l2_buf;
     int ret;
     memset(&v4l2_buf,0,sizeof(v4l2_buf));
-    
+
     v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     v4l2_buf.memory = V4L2_MEMORY_MMAP;
     ret = ioctl(fp, VIDIOC_DQBUF, &v4l2_buf);
@@ -448,7 +448,7 @@ int V4L2Camera::previewPoll(bool preview)
     LOGV("%s: enter",__func__);
 
     ret = poll(&m_events_c, 1, 1000);
-    
+
     if (ret < 0) {
         LOGE("ERR(%s):poll error\n", __func__);
         return ret;
@@ -459,37 +459,37 @@ int V4L2Camera::previewPoll(bool preview)
         return ret;
     }
 
-    LOGV("%s: exit",__func__);	
+    LOGV("%s: exit",__func__);
 
     return ret;
 }
 
 V4L2Camera::V4L2Camera ():
-		m_flag_init(0),
-		m_camera_id(CAMERA_ID_BACK),
-		m_preview_v4lformat(V4L2_PIX_FMT_YUV422P),
-		m_preview_width      (640),
-		m_preview_height     (480),
-		m_preview_max_width  (MAX_BACK_CAMERA_PREVIEW_WIDTH),
-		m_preview_max_height (MAX_BACK_CAMERA_PREVIEW_HEIGHT),
-		m_snapshot_v4lformat(V4L2_PIX_FMT_UYVY),
-		m_snapshot_width      (MAX_BACK_CAMERA_SNAPSHOT_WIDTH),
-		m_snapshot_height     (MAX_BACK_CAMERA_SNAPSHOT_HEIGHT),
-		m_snapshot_max_width  (MAX_BACK_CAMERA_SNAPSHOT_WIDTH),
-		m_snapshot_max_height (MAX_BACK_CAMERA_SNAPSHOT_HEIGHT),		
-		m_angle(-1),
-		m_flag_camera_start(0),
-		m_zoom_level(-1)
+    m_flag_init(0),
+    m_camera_id(CAMERA_ID_BACK),
+    m_preview_v4lformat(V4L2_PIX_FMT_YUV422P),
+    m_preview_width      (640),
+    m_preview_height     (480),
+    m_preview_max_width  (MAX_BACK_CAMERA_PREVIEW_WIDTH),
+    m_preview_max_height (MAX_BACK_CAMERA_PREVIEW_HEIGHT),
+    m_snapshot_v4lformat(V4L2_PIX_FMT_UYVY),
+    m_snapshot_width      (MAX_BACK_CAMERA_SNAPSHOT_WIDTH),
+    m_snapshot_height     (MAX_BACK_CAMERA_SNAPSHOT_HEIGHT),
+    m_snapshot_max_width  (MAX_BACK_CAMERA_SNAPSHOT_WIDTH),
+    m_snapshot_max_height (MAX_BACK_CAMERA_SNAPSHOT_HEIGHT),
+    m_angle(-1),
+    m_flag_camera_start(0),
+    m_zoom_level(-1)
 {
-	m_params = (struct sam_cam_parm*)&m_streamparm.parm.raw_data;
-	memset(&m_capture_buf, 0, sizeof(m_capture_buf));
-	ccRGBtoYUV = new CCRGB16toYUV420();
-	LOGV("%s :", __func__);
+    m_params = (struct sam_cam_parm*)&m_streamparm.parm.raw_data;
+    memset(&m_capture_buf, 0, sizeof(m_capture_buf));
+    ccRGBtoYUV = new CCRGB16toYUV420();
+    LOGV("%s :", __func__);
 }
 
 V4L2Camera::~V4L2Camera()
 {
-	LOGV("%s :", __func__);
+    LOGV("%s :", __func__);
 }
 
 int V4L2Camera::initCamera(int index)
@@ -498,35 +498,35 @@ int V4L2Camera::initCamera(int index)
     int ret = 0;
 
     if (!m_flag_init) {
-		m_cam_fd = open(CAMERA_DEV_NAME, O_RDWR);
-		if (m_cam_fd < 0) {
-			LOGE("ERR(%s):Cannot open %s (error : %s)\n", __func__, CAMERA_DEV_NAME, strerror(errno));
-			return -1;
-		}
-		LOGE("initCamera: m_cam_fd(%d)", m_cam_fd);
-		ret = isi_v4l2_querycap(m_cam_fd);
-		CHECK(ret);
-		if (!isi_v4l2_enuminput(m_cam_fd, index))
-			return -1;
-		ret = isi_v4l2_s_input(m_cam_fd, index);
-		CHECK(ret);
+        m_cam_fd = open(CAMERA_DEV_NAME, O_RDWR);
+        if (m_cam_fd < 0) {
+            LOGE("ERR(%s):Cannot open %s (error : %s)\n", __func__, CAMERA_DEV_NAME, strerror(errno));
+            return -1;
+        }
+        LOGE("initCamera: m_cam_fd(%d)", m_cam_fd);
+        ret = isi_v4l2_querycap(m_cam_fd);
+        CHECK(ret);
+        if (!isi_v4l2_enuminput(m_cam_fd, index))
+            return -1;
+        ret = isi_v4l2_s_input(m_cam_fd, index);
+        CHECK(ret);
 
-		m_camera_id = index;
-		switch (m_camera_id) {
-			case CAMERA_ID_FRONT:
-				LOGE("We don't support a front camera");
-				return -1;
-			break;
+        m_camera_id = index;
+        switch (m_camera_id) {
+        case CAMERA_ID_FRONT:
+            LOGE("We don't support a front camera");
+            return -1;
+            break;
 
-			case CAMERA_ID_BACK:
-				m_preview_max_width   = MAX_BACK_CAMERA_PREVIEW_WIDTH;
-				m_preview_max_height  = MAX_BACK_CAMERA_PREVIEW_HEIGHT;
-			break;
-		}
+        case CAMERA_ID_BACK:
+            m_preview_max_width   = MAX_BACK_CAMERA_PREVIEW_WIDTH;
+            m_preview_max_height  = MAX_BACK_CAMERA_PREVIEW_HEIGHT;
+            break;
+        }
 
-		m_flag_init = 1;
-    	}
-	return 0;
+        m_flag_init = 1;
+    }
+    return 0;
 }
 
 void V4L2Camera::resetCamera()
@@ -565,130 +565,130 @@ int V4L2Camera::getCameraFd(void)
 // Preview
 int V4L2Camera::startPreview(void)
 {
-	v4l2_streamparm streamparm;
-	LOGV("%s :", __func__);
+    v4l2_streamparm streamparm;
+    LOGV("%s :", __func__);
 
-	if (m_flag_camera_start > 0) {
-		LOGE("ERR(%s):Preview was already started\n", __func__);
-		return 0;
-	}
+    if (m_flag_camera_start > 0) {
+        LOGE("ERR(%s):Preview was already started\n", __func__);
+        return 0;
+    }
 
-	if (m_cam_fd <= 0) {
-		LOGE("ERR(%s):Camera was closed\n", __func__);
-		return -1;
-	}
+    if (m_cam_fd <= 0) {
+        LOGE("ERR(%s):Camera was closed\n", __func__);
+        return -1;
+    }
 
-	memset(&m_events_c, 0, sizeof(m_events_c));
-	m_events_c.fd = m_cam_fd;
-	m_events_c.events = POLLIN | POLLERR;
+    memset(&m_events_c, 0, sizeof(m_events_c));
+    m_events_c.fd = m_cam_fd;
+    m_events_c.events = POLLIN | POLLERR;
 
-	/* enum_fmt, s_fmt sample */
-	int ret = isi_v4l2_enum_fmt(m_cam_fd,m_preview_v4lformat);
-	CHECK(ret);
+    /* enum_fmt, s_fmt sample */
+    int ret = isi_v4l2_enum_fmt(m_cam_fd,m_preview_v4lformat);
+    CHECK(ret);
 
-	m_params->use_preview = 1;
-	ret = isi_v4l2_s_parm(m_cam_fd, &m_streamparm);
-	CHECK(ret);	
+    m_params->use_preview = 1;
+    ret = isi_v4l2_s_parm(m_cam_fd, &m_streamparm);
+    CHECK(ret);
 
-	ret = isi_v4l2_s_fmt(m_cam_fd, m_preview_width,m_preview_height,m_preview_v4lformat, 0);
-	CHECK(ret);
+    ret = isi_v4l2_s_fmt(m_cam_fd, m_preview_width,m_preview_height,m_preview_v4lformat, 0);
+    CHECK(ret);
 
-	ret = isi_v4l2_reqbufs(m_cam_fd, V4L2_BUF_TYPE_VIDEO_CAPTURE, MAX_BUFFERS);
-	CHECK(ret);
+    ret = isi_v4l2_reqbufs(m_cam_fd, V4L2_BUF_TYPE_VIDEO_CAPTURE, MAX_BUFFERS);
+    CHECK(ret);
 
-	if(ccRGBtoYUV != NULL)
-		ccRGBtoYUV->Init(m_preview_width, m_preview_height, m_preview_width, m_preview_width, m_preview_height, ((m_preview_width + 15) >> 4) << 4, 0);
+    if(ccRGBtoYUV != NULL)
+        ccRGBtoYUV->Init(m_preview_width, m_preview_height, m_preview_width, m_preview_width, m_preview_height, ((m_preview_width + 15) >> 4) << 4, 0);
 
-	LOGD("%s : m_preview_width: %d m_preview_height: %d m_angle: %d\n",
-            __func__, m_preview_width, m_preview_height, m_angle);
+    LOGD("%s : m_preview_width: %d m_preview_height: %d m_angle: %d\n",
+         __func__, m_preview_width, m_preview_height, m_angle);
 
-	/* start with all buffers in queue */
-	for (int i = 0; i < MAX_BUFFERS; i++) {
-		ret = isi_v4l2_qbuf(m_cam_fd, i);
-		CHECK(ret);
-	}
+    /* start with all buffers in queue */
+    for (int i = 0; i < MAX_BUFFERS; i++) {
+        ret = isi_v4l2_qbuf(m_cam_fd, i);
+        CHECK(ret);
+    }
 
-	ret = isi_v4l2_streamon(m_cam_fd);
-	CHECK(ret);
+    ret = isi_v4l2_streamon(m_cam_fd);
+    CHECK(ret);
 
-	m_flag_camera_start = 1;
+    m_flag_camera_start = 1;
 
-	ret = isi_poll(&m_events_c);
-	CHECK(ret);
+    ret = isi_poll(&m_events_c);
+    CHECK(ret);
 
-	LOGV("%s: got the first frame of the preview\n", __func__);
+    LOGV("%s: got the first frame of the preview\n", __func__);
 
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::stopPreview(void)
 {
-	int ret;
+    int ret;
 
-	LOGV("%s :", __func__);
+    LOGV("%s :", __func__);
 
-	if (m_flag_camera_start == 0) {
-		LOGW("%s: doing nothing because m_flag_camera_start is zero", __func__);
-		return 0;
-	}	
+    if (m_flag_camera_start == 0) {
+        LOGW("%s: doing nothing because m_flag_camera_start is zero", __func__);
+        return 0;
+    }
 
-	if (m_cam_fd <= 0) {
-		LOGE("ERR(%s):Camera was closed\n", __func__);
-		return -1;
-	}	
+    if (m_cam_fd <= 0) {
+        LOGE("ERR(%s):Camera was closed\n", __func__);
+        return -1;
+    }
 
-	ret = isi_v4l2_streamoff(m_cam_fd);
-	CHECK(ret);
+    ret = isi_v4l2_streamoff(m_cam_fd);
+    CHECK(ret);
 
-	m_flag_camera_start = 0;
+    m_flag_camera_start = 0;
 
-	return ret;
+    return ret;
 }
 
 int V4L2Camera::getPreviewframe()
 {
-	int index;
-	int ret;
+    int index;
+    int ret;
 
-	if (m_flag_camera_start == 0 ) {
-		LOGE("ERR(%s):Start Camera Device Reset \n", __func__);
+    if (m_flag_camera_start == 0 ) {
+        LOGE("ERR(%s):Start Camera Device Reset \n", __func__);
 
-		stopPreview();
-		ret = isi_v4l2_querycap(m_cam_fd);
-		CHECK(ret);
+        stopPreview();
+        ret = isi_v4l2_querycap(m_cam_fd);
+        CHECK(ret);
 
-		ret = startPreview();
+        ret = startPreview();
 
-		if (ret < 0) {
-			LOGE("ERR(%s): startPreview() return %d\n", __func__, ret);
-			return 0;
-		}
-	}
-	previewPoll(true);
+        if (ret < 0) {
+            LOGE("ERR(%s): startPreview() return %d\n", __func__, ret);
+            return 0;
+        }
+    }
+    previewPoll(true);
 
-	index = isi_v4l2_dqbuf(m_cam_fd);
-	if (!(0 <= index && index < MAX_BUFFERS)) {
-		LOGE("ERR(%s):wrong index = %d\n", __func__, index);
-		return -1;
-	}
+    index = isi_v4l2_dqbuf(m_cam_fd);
+    if (!(0 <= index && index < MAX_BUFFERS)) {
+        LOGE("ERR(%s):wrong index = %d\n", __func__, index);
+        return -1;
+    }
 
-	return index;	
+    return index;
 }
 
 int V4L2Camera::freePreviewframe(int index)
 {
-	LOGV("%s(index(%d))",__func__,index);
-	int ret;
-	ret = isi_v4l2_qbuf(m_cam_fd, index);
-	CHECK(ret);
+    LOGV("%s(index(%d))",__func__,index);
+    int ret;
+    ret = isi_v4l2_qbuf(m_cam_fd, index);
+    CHECK(ret);
 
-	return ret;
+    return ret;
 }
 
 int V4L2Camera::setPreviewSize(int width, int height, int pixel_format)
 {
-	LOGV("%s(width(%d), height(%d), format(%d))", __func__, width, height, pixel_format);
-	int v4lpixelformat = pixel_format;
+    LOGV("%s(width(%d), height(%d), format(%d))", __func__, width, height, pixel_format);
+    int v4lpixelformat = pixel_format;
 #if defined(LOG_NDEBUG) && LOG_NDEBUG == 0
     if (v4lpixelformat == V4L2_PIX_FMT_YUV420)
         LOGV("PreviewFormat:V4L2_PIX_FMT_YUV420");
@@ -701,11 +701,11 @@ int V4L2Camera::setPreviewSize(int width, int height, int pixel_format)
     else
         LOGV("PreviewFormat:UnknownFormat");
 #endif
-	m_preview_width  = width;
-	m_preview_height = height;
-	m_preview_v4lformat = v4lpixelformat;
+    m_preview_width  = width;
+    m_preview_height = height;
+    m_preview_v4lformat = v4lpixelformat;
 
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::getPreviewSize(int *width, int *height, int *frame_size)
@@ -729,117 +729,117 @@ int V4L2Camera::getPreviewPixelFormat(void)
 {
     return m_preview_v4lformat;
 }
-		
+
 //Recording
 int V4L2Camera::startRecord(void)
 {
-	int ret, i;
+    int ret, i;
 
-	LOGV("%s :", __func__);
+    LOGV("%s :", __func__);
 
-	if (m_flag_record_start > 0) {
-		LOGE("ERR(%s):Preview was already started\n", __func__);
-		return 0;
-	}
-	
-	m_flag_record_start = 1;
+    if (m_flag_record_start > 0) {
+        LOGE("ERR(%s):Preview was already started\n", __func__);
+        return 0;
+    }
 
-	return 0;
+    m_flag_record_start = 1;
+
+    return 0;
 }
 
 int V4L2Camera::stopRecord(void)
 {
-	int ret;
-	LOGV("%s :", __func__);
+    int ret;
+    LOGV("%s :", __func__);
 
-	if (m_flag_record_start == 0) {
-		LOGW("%s: doing nothing because m_flag_record_start is zero", __func__);
-		return 0;
-	}
+    if (m_flag_record_start == 0) {
+        LOGW("%s: doing nothing because m_flag_record_start is zero", __func__);
+        return 0;
+    }
 
-	m_flag_record_start = 0;
+    m_flag_record_start = 0;
 
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::getRecordFrame()
 {
-	if (m_flag_record_start == 0) {
-		LOGE("%s: m_flag_record_start is 0", __func__);
-		return -1;
-	}
+    if (m_flag_record_start == 0) {
+        LOGE("%s: m_flag_record_start is 0", __func__);
+        return -1;
+    }
 
 //	previewPoll(false);
 //	return isi_v4l2_dqbuf(m_cam_fd2);
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::releaseRecordFrame(int index)
 {
-	if (!m_flag_record_start) {
-		LOGI("%s: recording not in progress, ignoring", __func__);
-		return 0;
-	}
+    if (!m_flag_record_start) {
+        LOGI("%s: recording not in progress, ignoring", __func__);
+        return 0;
+    }
 
-	//return isi_v4l2_qbuf(m_cam_fd2, index);
-	return 0;
+    //return isi_v4l2_qbuf(m_cam_fd2, index);
+    return 0;
 }
 
 int V4L2Camera::setSnapshotSize(int width, int height)
 {
-	LOGV("%s(width(%d), height(%d))", __func__, width, height);
+    LOGV("%s(width(%d), height(%d))", __func__, width, height);
 
-	m_snapshot_width  = width;
-	m_snapshot_height = height;
+    m_snapshot_width  = width;
+    m_snapshot_height = height;
 
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::getSnapshotSize(int *width, int *height, int *frame_size)
 {
-	*width  = m_snapshot_width;
-	*height = m_snapshot_height;
+    *width  = m_snapshot_width;
+    *height = m_snapshot_height;
 
-	int frame = 0;
+    int frame = 0;
 
-	frame = m_frameSize(m_snapshot_v4lformat, m_snapshot_width, m_snapshot_height);
+    frame = m_frameSize(m_snapshot_v4lformat, m_snapshot_width, m_snapshot_height);
 
-	// set it big.
-	if (frame == 0)
-	frame = m_snapshot_width * m_snapshot_height * BPP;
+    // set it big.
+    if (frame == 0)
+        frame = m_snapshot_width * m_snapshot_height * BPP;
 
-	*frame_size = frame;
+    *frame_size = frame;
 
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::getSnapshotMaxSize(int *width, int *height)
 {
-	switch (m_camera_id) {
-	case CAMERA_ID_FRONT:
-		LOGE("We don't support a front camera");
-	break;
+    switch (m_camera_id) {
+    case CAMERA_ID_FRONT:
+        LOGE("We don't support a front camera");
+        break;
 
-	default:
-	case CAMERA_ID_BACK:
-		m_snapshot_max_width  = MAX_BACK_CAMERA_SNAPSHOT_WIDTH;
-		m_snapshot_max_height = MAX_BACK_CAMERA_SNAPSHOT_HEIGHT;
-	break;
-	}
+    default:
+    case CAMERA_ID_BACK:
+        m_snapshot_max_width  = MAX_BACK_CAMERA_SNAPSHOT_WIDTH;
+        m_snapshot_max_height = MAX_BACK_CAMERA_SNAPSHOT_HEIGHT;
+        break;
+    }
 
-	*width  = m_snapshot_max_width;
-	*height = m_snapshot_max_height;
+    *width  = m_snapshot_max_width;
+    *height = m_snapshot_max_height;
 
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::setSnapshotPixelFormat(int pixel_format)
 {
-	int v4lpixelformat= pixel_format;
+    int v4lpixelformat= pixel_format;
 
-	if (m_snapshot_v4lformat != v4lpixelformat) {
-		m_snapshot_v4lformat = v4lpixelformat;
-	}
+    if (m_snapshot_v4lformat != v4lpixelformat) {
+        m_snapshot_v4lformat = v4lpixelformat;
+    }
 
 #if defined(LOG_NDEBUG) && LOG_NDEBUG == 0
     if (m_snapshot_v4lformat == V4L2_PIX_FMT_YUV420)
@@ -855,110 +855,110 @@ int V4L2Camera::setSnapshotPixelFormat(int pixel_format)
     else
         LOGD("SnapshotFormat:UnknownFormat");
 #endif
-	return 0;
+    return 0;
 }
 
 int V4L2Camera::getSnapshotPixelFormat(void)
 {
-	return m_snapshot_v4lformat;
+    return m_snapshot_v4lformat;
 }
 
 int V4L2Camera::startSnapshot(void *rawbuf)
 {
-	v4l2_streamparm streamparm;
-	LOGV("%s : enter", __func__);
+    v4l2_streamparm streamparm;
+    LOGV("%s : enter", __func__);
 
-	if (m_flag_camera_start > 0) {
-		LOGE("ERR(%s):Preview is still running\n", __func__);
-		return -1;
-	}
+    if (m_flag_camera_start > 0) {
+        LOGE("ERR(%s):Preview is still running\n", __func__);
+        return -1;
+    }
 
-	if (m_cam_fd <= 0) {
-		LOGE("ERR(%s):Camera was closed\n", __func__);
-		return -1;
-	}
+    if (m_cam_fd <= 0) {
+        LOGE("ERR(%s):Camera was closed\n", __func__);
+        return -1;
+    }
 
-	memset(&m_events_c, 0, sizeof(m_events_c));
-	m_events_c.fd = m_cam_fd;
-	m_events_c.events = POLLIN | POLLERR;
+    memset(&m_events_c, 0, sizeof(m_events_c));
+    m_events_c.fd = m_cam_fd;
+    m_events_c.events = POLLIN | POLLERR;
 
-	/* enum_fmt, s_fmt sample */
-	int ret = isi_v4l2_enum_fmt(m_cam_fd,m_snapshot_v4lformat);
-	CHECK(ret);
+    /* enum_fmt, s_fmt sample */
+    int ret = isi_v4l2_enum_fmt(m_cam_fd,m_snapshot_v4lformat);
+    CHECK(ret);
 
-	m_params->use_preview = 0;
-	ret = isi_v4l2_s_parm(m_cam_fd, &m_streamparm);
-	CHECK(ret);
-	
-	ret = isi_v4l2_s_fmt(m_cam_fd, m_snapshot_width,m_snapshot_height,m_snapshot_v4lformat, 0);
-	CHECK(ret);
+    m_params->use_preview = 0;
+    ret = isi_v4l2_s_parm(m_cam_fd, &m_streamparm);
+    CHECK(ret);
 
-	ret = isi_v4l2_reqbufs(m_cam_fd, V4L2_BUF_TYPE_VIDEO_CAPTURE, 1);
-	CHECK(ret);
+    ret = isi_v4l2_s_fmt(m_cam_fd, m_snapshot_width,m_snapshot_height,m_snapshot_v4lformat, 0);
+    CHECK(ret);
 
-	LOGV("%s : m_snapshot_width: %d m_snapshot_height: %d m_angle: %d\n",
-            __func__, m_snapshot_width, m_snapshot_height, m_angle);
+    ret = isi_v4l2_reqbufs(m_cam_fd, V4L2_BUF_TYPE_VIDEO_CAPTURE, 1);
+    CHECK(ret);
 
-	ret = isi_v4l2_querybuf(m_cam_fd, &m_capture_buf, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0);
-	CHECK(ret);
-	
-	ret = isi_v4l2_qbuf(m_cam_fd, 0);
-	CHECK(ret);
+    LOGV("%s : m_snapshot_width: %d m_snapshot_height: %d m_angle: %d\n",
+         __func__, m_snapshot_width, m_snapshot_height, m_angle);
 
-	ret = isi_v4l2_streamon(m_cam_fd);
-	CHECK(ret);
+    ret = isi_v4l2_querybuf(m_cam_fd, &m_capture_buf, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0);
+    CHECK(ret);
 
-	ret = isi_poll(&m_events_c);
-	CHECK(ret);
-	
-	isi_v4l2_dqbuf(m_cam_fd);
+    ret = isi_v4l2_qbuf(m_cam_fd, 0);
+    CHECK(ret);
 
-	for(int i=0; i < SKIP_PICTURE_FRAMES; i++){
-		ret = isi_v4l2_qbuf(m_cam_fd, 0);
-		CHECK(ret);
-		ret = isi_poll(&m_events_c);
-		CHECK(ret);
-		isi_v4l2_dqbuf(m_cam_fd);
-	}
+    ret = isi_v4l2_streamon(m_cam_fd);
+    CHECK(ret);
 
-	memcpy(rawbuf, m_capture_buf.start, m_frameSize(m_snapshot_v4lformat, m_snapshot_width, m_snapshot_height));
+    ret = isi_poll(&m_events_c);
+    CHECK(ret);
 
-	LOGV("%s : exit", __func__);
+    isi_v4l2_dqbuf(m_cam_fd);
 
-	return 0;
+    for(int i=0; i < SKIP_PICTURE_FRAMES; i++) {
+        ret = isi_v4l2_qbuf(m_cam_fd, 0);
+        CHECK(ret);
+        ret = isi_poll(&m_events_c);
+        CHECK(ret);
+        isi_v4l2_dqbuf(m_cam_fd);
+    }
+
+    memcpy(rawbuf, m_capture_buf.start, m_frameSize(m_snapshot_v4lformat, m_snapshot_width, m_snapshot_height));
+
+    LOGV("%s : exit", __func__);
+
+    return 0;
 }
 
 int V4L2Camera::stopSnapshot(void)
 {
-	int ret;
+    int ret;
 
-	LOGV("%s :", __func__);
-	if (m_capture_buf.start) {
-		munmap(m_capture_buf.start, m_capture_buf.length);
-		LOGI("munmap():virt. addr %p size = %d\n",
-			m_capture_buf.start, m_capture_buf.length);
-		m_capture_buf.start = NULL;
-		m_capture_buf.length = 0;
-	}
+    LOGV("%s :", __func__);
+    if (m_capture_buf.start) {
+        munmap(m_capture_buf.start, m_capture_buf.length);
+        LOGI("munmap():virt. addr %p size = %d\n",
+             m_capture_buf.start, m_capture_buf.length);
+        m_capture_buf.start = NULL;
+        m_capture_buf.length = 0;
+    }
 
-	ret = isi_v4l2_streamoff(m_cam_fd);
-	CHECK(ret);
- 
-	return 0;
+    ret = isi_v4l2_streamoff(m_cam_fd);
+    CHECK(ret);
+
+    return 0;
 }
 
 void V4L2Camera::getPostViewConfig(int *width, int *height, int *size)
 {
-	*width = 800;
-	*height = 600;
-	*size = 800 * 600 * 16 / 8;
+    *width = 800;
+    *height = 600;
+    *size = 800 * 600 * 16 / 8;
     LOGV("[5B] m_preview_width : %d, mPostViewWidth = %d mPostViewHeight = %d mPostViewSize = %d",
-            m_preview_width, *width, *height, *size);
+         m_preview_width, *width, *height, *size);
 }
 
 int V4L2Camera::SavePicture(void)
 {
-	return savePicture((unsigned char *)m_capture_buf.start, "/tmp/tmp.jpeg");
+    return savePicture((unsigned char *)m_capture_buf.start, "/tmp/tmp.jpeg");
 }
 
 int V4L2Camera::savePicture(unsigned char *inputBuffer, const char * filename)
@@ -974,7 +974,7 @@ int V4L2Camera::savePicture(unsigned char *inputBuffer, const char * filename)
     }
 
     fileSize = saveYUYVtoJPEG(inputBuffer, m_snapshot_width, m_snapshot_height, output, 100);
-	
+
     fclose(output);
 
     LOGD("savePicture: saveYUYVtoJPEG OK\n");
@@ -984,52 +984,52 @@ int V4L2Camera::savePicture(unsigned char *inputBuffer, const char * filename)
 
 int V4L2Camera::readjpeg(void *previewBuffer,int fileSize)
 {
-	   FILE *input;
-	   input = fopen("/tmp/tmp.jpeg", "rb");
-	   if (input == NULL)
-	        LOGE("readjpeg: Input file == NULL");
-	   else if(previewBuffer == NULL)
-	   	LOGE("readjpeg: previewBuffer == NULL");
-	   else {
-	        fread((uint8_t *)previewBuffer, 1, fileSize, input);
-	        fclose(input);
-		 LOGD("read jpeg OK");
-	        return 0;
-	    }
-	   return fileSize;
+    FILE *input;
+    input = fopen("/tmp/tmp.jpeg", "rb");
+    if (input == NULL)
+        LOGE("readjpeg: Input file == NULL");
+    else if(previewBuffer == NULL)
+        LOGE("readjpeg: previewBuffer == NULL");
+    else {
+        fread((uint8_t *)previewBuffer, 1, fileSize, input);
+        fclose(input);
+        LOGD("read jpeg OK");
+        return 0;
+    }
+    return fileSize;
 }
 
 int V4L2Camera::saveYUYVtoJPEG (unsigned char *inputBuffer, int width, int height, FILE *file, int quality)
-{	
-   	struct jpeg_compress_struct cinfo;
-    	struct jpeg_error_mgr jerr;
-    	JSAMPROW row_pointer[1];
-    	unsigned char *line_buffer;
-    	unsigned char Y1, Y2, U, V;
-    	register int r,g,b;
-    	unsigned int y=0;
-    	int line,col;
+{
+    struct jpeg_compress_struct cinfo;
+    struct jpeg_error_mgr jerr;
+    JSAMPROW row_pointer[1];
+    unsigned char *line_buffer;
+    unsigned char Y1, Y2, U, V;
+    register int r,g,b;
+    unsigned int y=0;
+    int line,col;
 
-    	int fileSize;
+    int fileSize;
 
-    	line_buffer = (unsigned char *) calloc (width *3, 1);
-	
-    	cinfo.err = jpeg_std_error (&jerr);
-    	jpeg_create_compress (&cinfo);
-    	jpeg_stdio_dest (&cinfo, file);
+    line_buffer = (unsigned char *) calloc (width *3, 1);
 
-    	cinfo.image_width = width;
-    	cinfo.image_height = height;
-    	cinfo.input_components = 3;
-    	cinfo.in_color_space = JCS_RGB;
+    cinfo.err = jpeg_std_error (&jerr);
+    jpeg_create_compress (&cinfo);
+    jpeg_stdio_dest (&cinfo, file);
 
-    	jpeg_set_defaults (&cinfo);
-    	jpeg_set_quality (&cinfo, quality, TRUE);
+    cinfo.image_width = width;
+    cinfo.image_height = height;
+    cinfo.input_components = 3;
+    cinfo.in_color_space = JCS_RGB;
 
-    	jpeg_start_compress (&cinfo, TRUE);
+    jpeg_set_defaults (&cinfo);
+    jpeg_set_quality (&cinfo, quality, TRUE);
 
-   	for (line = 0; line < height; line++) {
-		unsigned char *ptr = line_buffer;
+    jpeg_start_compress (&cinfo, TRUE);
+
+    for (line = 0; line < height; line++) {
+        unsigned char *ptr = line_buffer;
         for (col = 0; col < width; col+=2) {
             Y1 = inputBuffer[y + 0];
             V = inputBuffer[y + 1];
@@ -1039,31 +1039,31 @@ int V4L2Camera::saveYUYVtoJPEG (unsigned char *inputBuffer, int width, int heigh
             r = (1192 * (Y1 - 16) + 1634 * (V - 128) ) >> 10;
             g = (1192 * (Y1 - 16) - 833 * (V - 128) - 400 * (U -128) ) >> 10;
             b = (1192 * (Y1 - 16) + 2066 * (U - 128) ) >> 10;
-	
+
             *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
             *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
             *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
 
-			r = (1192 * (Y2 - 16) + 1634 * (V - 128) ) >> 10;
-			g = (1192 * (Y2 - 16) - 833 * (V - 128) - 400 * (U -128) ) >> 10;
-			b = (1192 * (Y2 - 16) + 2066 * (U - 128) ) >> 10;
+            r = (1192 * (Y2 - 16) + 1634 * (V - 128) ) >> 10;
+            g = (1192 * (Y2 - 16) - 833 * (V - 128) - 400 * (U -128) ) >> 10;
+            b = (1192 * (Y2 - 16) + 2066 * (U - 128) ) >> 10;
 
             *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
             *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
             *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
 
             y = y+4;
-        }//line end	 	 
+        }//line end
 
         row_pointer[0] = line_buffer;
         jpeg_write_scanlines (&cinfo, row_pointer, 1);
-	}
+    }
 
-    	jpeg_finish_compress (&cinfo);
-    	fileSize = ftell(file);
-    	jpeg_destroy_compress (&cinfo);
+    jpeg_finish_compress (&cinfo);
+    fileSize = ftell(file);
+    jpeg_destroy_compress (&cinfo);
 
-    	free (line_buffer);
+    free (line_buffer);
 
     return fileSize;
 
@@ -1074,46 +1074,46 @@ static inline void yuv_to_rgb16(unsigned char y,
                                 unsigned char v,
                                 unsigned char *rgb)
 {
-    	register int r,g,b;
-    	int rgb16;
+    register int r,g,b;
+    int rgb16;
 
-    	r = (1192 * (y - 16) + 1634 * (v - 128) ) >> 10;
-    	g = (1192 * (y - 16) - 833 * (v - 128) - 400 * (u -128) ) >> 10;
-    	b = (1192 * (y - 16) + 2066 * (u - 128) ) >> 10;
+    r = (1192 * (y - 16) + 1634 * (v - 128) ) >> 10;
+    g = (1192 * (y - 16) - 833 * (v - 128) - 400 * (u -128) ) >> 10;
+    b = (1192 * (y - 16) + 2066 * (u - 128) ) >> 10;
 
-    	r = r > 255 ? 255 : r < 0 ? 0 : r;
-    	g = g > 255 ? 255 : g < 0 ? 0 : g;
-    	b = b > 255 ? 255 : b < 0 ? 0 : b;
+    r = r > 255 ? 255 : r < 0 ? 0 : r;
+    g = g > 255 ? 255 : g < 0 ? 0 : g;
+    b = b > 255 ? 255 : b < 0 ? 0 : b;
 
-    	rgb16 = (int)(((r >> 3)<<11) | ((g >> 2) << 5)| ((b >> 3) << 0));
+    rgb16 = (int)(((r >> 3)<<11) | ((g >> 2) << 5)| ((b >> 3) << 0));
 
-    	*rgb = (unsigned char)(rgb16 & 0xFF);
-    	rgb++;
-    	*rgb = (unsigned char)((rgb16 & 0xFF00) >> 8);
+    *rgb = (unsigned char)(rgb16 & 0xFF);
+    rgb++;
+    *rgb = (unsigned char)((rgb16 & 0xFF00) >> 8);
 
 }
 
 void V4L2Camera::convert(void *buf_in, void *rgb_in, int width, int height)
-{ 
-   	int x,y,z=0;
-    	int blocks;
+{
+    int x,y,z=0;
+    int blocks;
 
-	unsigned char *buf = (unsigned char *) buf_in;
-   	unsigned char *rgb = (unsigned char *) rgb_in;	
+    unsigned char *buf = (unsigned char *) buf_in;
+    unsigned char *rgb = (unsigned char *) rgb_in;
 
-    	blocks = (width * height) * 2;
+    blocks = (width * height) * 2;
 
-    	for (y = 0; y < blocks; y+=4) {
-       	unsigned char Y1, Y2, U, V;
+    for (y = 0; y < blocks; y+=4) {
+        unsigned char Y1, Y2, U, V;
 
-       	U = buf[y + 0];
-        	Y1 = buf[y + 1];
-        	V = buf[y + 2];
-        	Y2 = buf[y + 3];
+        U = buf[y + 0];
+        Y1 = buf[y + 1];
+        V = buf[y + 2];
+        Y2 = buf[y + 3];
 
-        	yuv_to_rgb16(Y1, U, V, &rgb[y]);
-        	yuv_to_rgb16(Y2, U, V, &rgb[y + 2]);
-	}
+        yuv_to_rgb16(Y1, U, V, &rgb[y]);
+        yuv_to_rgb16(Y2, U, V, &rgb[y + 2]);
+    }
 }
 
 int V4L2Camera::setCameraId(int camera_id)
@@ -1154,12 +1154,12 @@ int V4L2Camera::SetRotate(int angle)
             break;
 
         default:
-           
+
             return -1;
         }
 
-        }
-    
+    }
+
     return 0;
 }
 
@@ -1189,11 +1189,11 @@ int V4L2Camera::getRotate(void)
 }
 
 void V4L2Camera::rgb16TOyuv420(void *rgb16, void *yuv420)
-{ 
-	if(ccRGBtoYUV != NULL)
-		ccRGBtoYUV->Convert((unsigned char *)rgb16, (unsigned char *)yuv420);
-	else
-		LOGE("ccRGBtoYUV is null, we could not convert data from rgb565 to yuv420");
+{
+    if(ccRGBtoYUV != NULL)
+        ccRGBtoYUV->Convert((unsigned char *)rgb16, (unsigned char *)yuv420);
+    else
+        LOGE("ccRGBtoYUV is null, we could not convert data from rgb565 to yuv420");
 }
 
 // ======================================================================

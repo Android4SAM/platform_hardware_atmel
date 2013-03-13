@@ -19,13 +19,13 @@
 #include "CameraHardwareSam.h"
 #include <camera/Camera.h>
 #include <utils/threads.h>
-#include <fcntl.h> 
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <hardware/hardware.h>
 #include <signal.h>
 
-extern "C"{
+extern "C" {
 #include<unistd.h>
 #include <pthread.h>
 #include <signal.h>
@@ -39,27 +39,27 @@ bool CameraHardwareSam::mInitialed = false;
 gralloc_module_t const* CameraHardwareSam::mGrallocHal;
 
 CameraHardwareSam::CameraHardwareSam(int cameraId, camera_device_t *dev)
-                  : mCaptureInProgress(false),
-                    mParameters(), 
-                    mPreviewHeap(0),
-                    mRawHeap(0),
-                    mV4L2Camera(NULL),
+    : mCaptureInProgress(false),
+      mParameters(),
+      mPreviewHeap(0),
+      mRawHeap(0),
+      mV4L2Camera(NULL),
 #if defined(BOARD_USES_OVERLAY)
-                    mUseOverlay(false),
-                    mOverlayBufferIdx(0),
-#endif                    
-                    mNotifyCb(0),
-                    mDataCb(0),
-                    mDataCbTimestamp(0),
-                    mCallbackCookie(0),
-                    mMsgEnabled(0),
-                    mRecordRunning(false)
+      mUseOverlay(false),
+      mOverlayBufferIdx(0),
+#endif
+      mNotifyCb(0),
+      mDataCb(0),
+      mDataCbTimestamp(0),
+      mCallbackCookie(0),
+      mMsgEnabled(0),
+      mRecordRunning(false)
 {
-	LOGV("%s :", __func__);
-	int ret = 0;
-	char value[PROPERTY_VALUE_MAX];
-	mPreviewWindow = NULL;
-	mV4L2Camera = V4L2Camera::createInstance();
+    LOGV("%s :", __func__);
+    int ret = 0;
+    char value[PROPERTY_VALUE_MAX];
+    mPreviewWindow = NULL;
+    mV4L2Camera = V4L2Camera::createInstance();
     mRawHeap = NULL;
     mPreviewHeap = NULL;
     mRecordHeap = NULL;
@@ -69,20 +69,20 @@ CameraHardwareSam::CameraHardwareSam(int cameraId, camera_device_t *dev)
         if (ret)
             LOGE("ERR(%s):Fail on loading gralloc HAL", __func__);
     }
-	if(mV4L2Camera == NULL)
-	{
-		LOGE("ERR(%s):Fail on mV4L2Camera object creation", __func__);
-		return;
-	}
+    if(mV4L2Camera == NULL)
+    {
+        LOGE("ERR(%s):Fail on mV4L2Camera object creation", __func__);
+        return;
+    }
 
-	ret = mV4L2Camera->initCamera(cameraId);
+    ret = mV4L2Camera->initCamera(cameraId);
 
-	if (ret < 0) {
-		LOGE("ERR(%s):Fail on mV4L2Camera init", __func__);
-		return;
-	}
+    if (ret < 0) {
+        LOGE("ERR(%s):Fail on mV4L2Camera init", __func__);
+        return;
+    }
 
-	initDefaultParameters(cameraId);
+    initDefaultParameters(cameraId);
 
     mExitAutoFocusThread = false;
     mExitPreviewThread = false;
@@ -103,78 +103,78 @@ int CameraHardwareSam::getCameraId() const
 }
 
 void CameraHardwareSam::initDefaultParameters(int cameraId)
-{ 
-	if (mV4L2Camera == NULL) {
-		LOGE("ERR(%s):mV4L2Camera object is NULL", __func__);
-		return;
-	}
-	
-	CameraParameters p;
+{
+    if (mV4L2Camera == NULL) {
+        LOGE("ERR(%s):mV4L2Camera object is NULL", __func__);
+        return;
+    }
 
-	p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
-              "1600x1200,1280x1024,1024x768,800x600,640x480,352x288,320x240,176x144");
-	p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES,
-              "640x480");
+    CameraParameters p;
 
-	int preview_max_width   = 0;
-	int preview_max_height  = 0;
-	int snapshot_max_width  = 0;
-	int snapshot_max_height = 0;
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
+          "1600x1200,1280x1024,1024x768,800x600,640x480,352x288,320x240,176x144");
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES,
+          "640x480");
 
-	if (mV4L2Camera->getPreviewMaxSize(&preview_max_width,
-                                      &preview_max_height) < 0)
-	LOGE("getPreviewMaxSize fail (%d / %d) \n",
+    int preview_max_width   = 0;
+    int preview_max_height  = 0;
+    int snapshot_max_width  = 0;
+    int snapshot_max_height = 0;
+
+    if (mV4L2Camera->getPreviewMaxSize(&preview_max_width,
+                                       &preview_max_height) < 0)
+        LOGE("getPreviewMaxSize fail (%d / %d) \n",
              preview_max_width, preview_max_height);
 
-	if (mV4L2Camera->getSnapshotMaxSize(&snapshot_max_width,
-                                       &snapshot_max_height) < 0)
-	LOGE("getSnapshotMaxSize fail (%d / %d) \n",
+    if (mV4L2Camera->getSnapshotMaxSize(&snapshot_max_width,
+                                        &snapshot_max_height) < 0)
+        LOGE("getSnapshotMaxSize fail (%d / %d) \n",
              snapshot_max_width, snapshot_max_height);
 
-	p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
-	p.setPreviewSize(preview_max_width, preview_max_height);
-	
-	p.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
-	p.setPictureSize(snapshot_max_width, snapshot_max_height);
-	p.set(CameraParameters::KEY_JPEG_QUALITY, "100"); // maximum quality
+    p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
+    p.setPreviewSize(preview_max_width, preview_max_height);
 
-	p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
+    p.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
+    p.setPictureSize(snapshot_max_width, snapshot_max_height);
+    p.set(CameraParameters::KEY_JPEG_QUALITY, "100"); // maximum quality
+
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
           CameraParameters::PIXEL_FORMAT_YUV420SP);
-	p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS,
+    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS,
           CameraParameters::PIXEL_FORMAT_JPEG);
-	p.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT,
+    p.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT,
           "yuv420p");
 
-	p.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "100");
+    p.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "100");
 
-	p.set(CameraParameters::KEY_ROTATION, 0);
-	p.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_DAYLIGHT);
+    p.set(CameraParameters::KEY_ROTATION, 0);
+    p.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_DAYLIGHT);
 
-	p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, "(15000,30000)");
-	p.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "15000,30000");
-	p.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "51.2");
-	p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, "39.4");
-    
-	p.setPreviewFrameRate(20);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, "(15000,30000)");
+    p.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "15000,30000");
+    p.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "51.2");
+    p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, "39.4");
 
-	String8 parameterString;
-	parameterString = CameraParameters::FOCUS_MODE_FIXED;
-	p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
-		parameterString.string());
-	p.set(CameraParameters::KEY_FOCUS_MODE,
-		CameraParameters::FOCUS_MODE_FIXED);
-	p.set(CameraParameters::KEY_FOCUS_DISTANCES,
-		FRONT_CAMERA_FOCUS_DISTANCES_STR);
-		
-	mParameters = p;
-	if (setParameters(p) != NO_ERROR) {
-		LOGE("Failed to set default parameters?!");
-	}
+    p.setPreviewFrameRate(20);
+
+    String8 parameterString;
+    parameterString = CameraParameters::FOCUS_MODE_FIXED;
+    p.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
+          parameterString.string());
+    p.set(CameraParameters::KEY_FOCUS_MODE,
+          CameraParameters::FOCUS_MODE_FIXED);
+    p.set(CameraParameters::KEY_FOCUS_DISTANCES,
+          FRONT_CAMERA_FOCUS_DISTANCES_STR);
+
+    mParameters = p;
+    if (setParameters(p) != NO_ERROR) {
+        LOGE("Failed to set default parameters?!");
+    }
 }
 
 CameraHardwareSam::~CameraHardwareSam()
-{  
-	LOGV("%s :", __func__);
+{
+    LOGV("%s :", __func__);
 }
 
 void CameraHardwareSam::setCallbacks(camera_notify_callback notify_cb,
@@ -208,26 +208,26 @@ void CameraHardwareSam::disableMsgType(int32_t msgType)
 
 bool CameraHardwareSam::msgTypeEnabled(int32_t msgType)
 {
-	return (mMsgEnabled & msgType);
+    return (mMsgEnabled & msgType);
 }
 
 // ---------------------------------------------------------------------------
 
 static void showFPS(const char *tag)
 {
-	static int mFrameCount = 0;
-	static int mLastFrameCount = 0;
-	static nsecs_t mLastFpsTime = 0;
-	static float mFps = 0;
-	mFrameCount++;
-	if (!(mFrameCount & 0x1F)) {
-		nsecs_t now = systemTime();
-		nsecs_t diff = now - mLastFpsTime;
-		mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
-		mLastFpsTime = now;
-		mLastFrameCount = mFrameCount;
-		LOGD("[%s] %d Frames, %f FPS", tag, mFrameCount, mFps);
-	}
+    static int mFrameCount = 0;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    if (!(mFrameCount & 0x1F)) {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - mLastFpsTime;
+        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+        LOGD("[%s] %d Frames, %f FPS", tag, mFrameCount, mFps);
+    }
 }
 
 int CameraHardwareSam::previewThreadWrapper()
@@ -257,29 +257,29 @@ int CameraHardwareSam::previewThreadWrapper()
 int CameraHardwareSam::previewThread()
 {
     int index = 0;
-	int width, height, frame_size, offset, page_size;
+    int width, height, frame_size, offset, page_size;
     nsecs_t timestamp;
 
     LOGV("%s:",__func__);
 
     index = mV4L2Camera->getPreviewframe();
     if (index < 0) {
-		LOGE("ERR(%s):Fail on mV4L2Camera->getPreview()", __func__);
-		return UNKNOWN_ERROR;
-	}
-	
-	if (index == kBufferCount){
-		mV4L2Camera->freePreviewframe(index);
-		return NO_ERROR;
-	}
-	
+        LOGE("ERR(%s):Fail on mV4L2Camera->getPreview()", __func__);
+        return UNKNOWN_ERROR;
+    }
+
+    if (index == kBufferCount) {
+        mV4L2Camera->freePreviewframe(index);
+        return NO_ERROR;
+    }
+
     mV4L2Camera->getPreviewSize(&width, &height, &frame_size);
-	page_size = getpagesize();
+    page_size = getpagesize();
     offset = ((frame_size + (page_size - 1)) & (~(page_size - 1))) * index;
-	
+
     LOGV("mPreviewHeap(fd(%d), size(%d), width(%d), height(%d))",
          mV4L2Camera->getCameraFd(), frame_size, width, height);
-	
+
     if (mPreviewWindow && mGrallocHal) {
         buffer_handle_t *buf_handle;
         int stride;
@@ -314,13 +314,13 @@ int CameraHardwareSam::previewThread()
         }
     }
 callbacks:
-	// Notify the client of a new frame.
-	if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
-			 mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap, index, NULL, mCallbackCookie);
-	}
+    // Notify the client of a new frame.
+    if (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
+        mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap, index, NULL, mCallbackCookie);
+    }
 
-	mV4L2Camera->freePreviewframe(index);
-	return NO_ERROR;
+    mV4L2Camera->freePreviewframe(index);
+    return NO_ERROR;
 }
 
 void CameraHardwareSam::setSkipFrame(int frame)
@@ -334,7 +334,7 @@ void CameraHardwareSam::setSkipFrame(int frame)
 
 
 status_t CameraHardwareSam::startPreview()
-{   
+{
     int ret = 0;        //s1 [Apply factory standard]
 
     LOGV("%s :", __func__);
@@ -419,7 +419,7 @@ void CameraHardwareSam::stopPreviewInternal()
         LOGI("%s : preview not running, doing nothing", __func__);
 }
 
-void CameraHardwareSam::stopPreview(){
+void CameraHardwareSam::stopPreview() {
     LOGV("%s :", __func__);
 
     /* request that the preview thread stop. */
@@ -430,9 +430,9 @@ void CameraHardwareSam::stopPreview(){
 }
 
 bool CameraHardwareSam::previewEnabled()	{
-	Mutex::Autolock lock(mPreviewLock);
-	LOGD("%s : %d", __func__, mPreviewRunning);
-	return mPreviewRunning;
+    Mutex::Autolock lock(mPreviewLock);
+    LOGD("%s : %d", __func__, mPreviewRunning);
+    return mPreviewRunning;
 }
 
 // ---------------------------------------------------------------------------
@@ -463,8 +463,8 @@ int CameraHardwareSam::autoFocusThread()
     }
     mFocusLock.unlock();
 
-	if (mMsgEnabled & CAMERA_MSG_FOCUS)
-		mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+    if (mMsgEnabled & CAMERA_MSG_FOCUS)
+        mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
 
     LOGV("%s : exiting with no error", __func__);
     return NO_ERROR;
@@ -481,8 +481,8 @@ status_t CameraHardwareSam::autoFocus()
 status_t CameraHardwareSam::cancelAutoFocus()
 {
     LOGV("%s :", __func__);
-	
-	// cancelAutoFocus should be allowed after preview is started. But if
+
+    // cancelAutoFocus should be allowed after preview is started. But if
     // the preview is deferred, cancelAutoFocus will fail. Ignore it if that is
     // the case.
     if (mPreviewRunning && mPreviewStartDeferred) return NO_ERROR;
@@ -582,29 +582,29 @@ status_t CameraHardwareSam::setPreviewWindow(preview_stream_ops *w)
 
 
 status_t CameraHardwareSam::sendCommand(int32_t command, int32_t arg1,
-                                         int32_t arg2){
-	return NO_ERROR;
+                                        int32_t arg2) {
+    return NO_ERROR;
 }
 
 // ---------------------------------------------------------------------------
 
 status_t CameraHardwareSam::startRecording()
 {
-	LOGD("%s :", __func__);
+    LOGD("%s :", __func__);
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
 void CameraHardwareSam::stopRecording()
 {
-	LOGD("%s :", __func__);
+    LOGD("%s :", __func__);
 }
 
 bool CameraHardwareSam::recordingEnabled()
 {
-	LOGD("%s :", __func__);
+    LOGD("%s :", __func__);
 
-	return mRecordRunning;
+    return mRecordRunning;
 }
 
 void CameraHardwareSam::releaseRecordingFrame(const void *opaque)
@@ -615,54 +615,54 @@ void CameraHardwareSam::releaseRecordingFrame(const void *opaque)
 
 int CameraHardwareSam::pictureThread()
 {
-	int ret;
-	int filesize;
-	int width, height;
-	int cap_width, cap_height, cap_frame_size;
-	
-	stopPreview();
-	mV4L2Camera->getSnapshotSize(&cap_width, &cap_height, &cap_frame_size);
-	int mJpegHeapSize = cap_frame_size;
-	
-	if (mRawHeap) {
+    int ret;
+    int filesize;
+    int width, height;
+    int cap_width, cap_height, cap_frame_size;
+
+    stopPreview();
+    mV4L2Camera->getSnapshotSize(&cap_width, &cap_height, &cap_frame_size);
+    int mJpegHeapSize = cap_frame_size;
+
+    if (mRawHeap) {
         mRawHeap->release(mRawHeap);
         mRawHeap = 0;
     }
-	mRawHeap = mGetMemoryCb(-1, mJpegHeapSize, 1, 0);
-	
-	camera_memory_t *JpegHeap = mGetMemoryCb(-1, mJpegHeapSize, 1, 0);
-	
-	ret = mV4L2Camera->startSnapshot(mRawHeap->data);
-	if(ret != 0){
-		LOGE("%s:could not start capture",__func__);
-		goto out;
-	}
-	
-	if (mMsgEnabled & CAMERA_MSG_SHUTTER)
-		mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
-	
-	if (mMsgEnabled & CAMERA_MSG_RAW_IMAGE) {
-		mDataCb(CAMERA_MSG_RAW_IMAGE, mRawHeap, 0, NULL, mCallbackCookie);
-	}
-	
-	mV4L2Camera->SavePicture();
-	
-	ret = mV4L2Camera->readjpeg(JpegHeap->data, mJpegHeapSize);
-	
-	if(ret != 0){
-		LOGE("%s:read jpeg error",__func__);
-       	goto out;
+    mRawHeap = mGetMemoryCb(-1, mJpegHeapSize, 1, 0);
+
+    camera_memory_t *JpegHeap = mGetMemoryCb(-1, mJpegHeapSize, 1, 0);
+
+    ret = mV4L2Camera->startSnapshot(mRawHeap->data);
+    if(ret != 0) {
+        LOGE("%s:could not start capture",__func__);
+        goto out;
     }
-   
-	if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE) {
-		mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JpegHeap, 0, NULL, mCallbackCookie);
-  	}
-	
-	ret = NO_ERROR;
-	
+
+    if (mMsgEnabled & CAMERA_MSG_SHUTTER)
+        mNotifyCb(CAMERA_MSG_SHUTTER, 0, 0, mCallbackCookie);
+
+    if (mMsgEnabled & CAMERA_MSG_RAW_IMAGE) {
+        mDataCb(CAMERA_MSG_RAW_IMAGE, mRawHeap, 0, NULL, mCallbackCookie);
+    }
+
+    mV4L2Camera->SavePicture();
+
+    ret = mV4L2Camera->readjpeg(JpegHeap->data, mJpegHeapSize);
+
+    if(ret != 0) {
+        LOGE("%s:read jpeg error",__func__);
+        goto out;
+    }
+
+    if (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE) {
+        mDataCb(CAMERA_MSG_COMPRESSED_IMAGE, JpegHeap, 0, NULL, mCallbackCookie);
+    }
+
+    ret = NO_ERROR;
+
 out:
     JpegHeap->release(JpegHeap);
-	mV4L2Camera->stopSnapshot();
+    mV4L2Camera->stopSnapshot();
     mCaptureLock.lock();
     mCaptureInProgress = false;
     mCaptureCondition.broadcast();
@@ -689,171 +689,171 @@ status_t CameraHardwareSam::waitCaptureCompletion() {
 
 status_t CameraHardwareSam::takePicture()
 {
-	LOGV("%s :", __func__);
-	
-	if (mCaptureInProgress) {
-		LOGE("%s : capture already in progress", __func__);
-		return INVALID_OPERATION;
-	}
-	
-	if (mPictureThread->run("CameraPictureThread", PRIORITY_DEFAULT) != NO_ERROR) {
-		LOGE("%s : couldn't run picture thread", __func__);
-		return INVALID_OPERATION;
-	}
-	mCaptureLock.lock();
+    LOGV("%s :", __func__);
+
+    if (mCaptureInProgress) {
+        LOGE("%s : capture already in progress", __func__);
+        return INVALID_OPERATION;
+    }
+
+    if (mPictureThread->run("CameraPictureThread", PRIORITY_DEFAULT) != NO_ERROR) {
+        LOGE("%s : couldn't run picture thread", __func__);
+        return INVALID_OPERATION;
+    }
+    mCaptureLock.lock();
     mCaptureInProgress = true;
     mCaptureLock.unlock();
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
 status_t CameraHardwareSam::cancelPicture()
 {
-	mPictureThread->requestExitAndWait();
+    mPictureThread->requestExitAndWait();
 
-	return NO_ERROR;
+    return NO_ERROR;
 }
 
-status_t CameraHardwareSam::setParameters(const CameraParameters& params){
-	LOGD("%s :", __func__);
+status_t CameraHardwareSam::setParameters(const CameraParameters& params) {
+    LOGD("%s :", __func__);
 
-	status_t ret = NO_ERROR;
+    status_t ret = NO_ERROR;
 
-	// preview size
-	int new_preview_width  = 0;
-	int new_preview_height = 0;
-	params.getPreviewSize(&new_preview_width, &new_preview_height);
-	const char *new_str_preview_format = params.getPreviewFormat();
+    // preview size
+    int new_preview_width  = 0;
+    int new_preview_height = 0;
+    params.getPreviewSize(&new_preview_width, &new_preview_height);
+    const char *new_str_preview_format = params.getPreviewFormat();
 
-	if (0 < new_preview_width && 0 < new_preview_height &&
+    if (0 < new_preview_width && 0 < new_preview_height &&
             new_str_preview_format != NULL ) {
-		int new_preview_format = 0;
-		if (!strcmp(new_str_preview_format,
-			CameraParameters::PIXEL_FORMAT_YUV420SP))
-			new_preview_format = V4L2_PIX_FMT_YUYV;
-		else
-			LOGE("ERR: not a supported preview format");
+        int new_preview_format = 0;
+        if (!strcmp(new_str_preview_format,
+                    CameraParameters::PIXEL_FORMAT_YUV420SP))
+            new_preview_format = V4L2_PIX_FMT_YUYV;
+        else
+            LOGE("ERR: not a supported preview format");
 
-		if (mV4L2Camera->setPreviewSize(new_preview_width, new_preview_height, new_preview_format) < 0) {
-            		ret = UNKNOWN_ERROR;
-         	} else {
-			mParameters.setPreviewSize(new_preview_width, new_preview_height);
-			mParameters.setPreviewFormat(new_str_preview_format);
-		}
-    	}else {
-               LOGE("%s: Invalid preview size(%dx%d)",
-                __func__, new_preview_width, new_preview_height);
+        if (mV4L2Camera->setPreviewSize(new_preview_width, new_preview_height, new_preview_format) < 0) {
+            ret = UNKNOWN_ERROR;
+        } else {
+            mParameters.setPreviewSize(new_preview_width, new_preview_height);
+            mParameters.setPreviewFormat(new_str_preview_format);
+        }
+    } else {
+        LOGE("%s: Invalid preview size(%dx%d)",
+             __func__, new_preview_width, new_preview_height);
 
-               ret = INVALID_OPERATION;
-	}
+        ret = INVALID_OPERATION;
+    }
 
-	int new_picture_width  = 0;
-	int new_picture_height = 0;
+    int new_picture_width  = 0;
+    int new_picture_height = 0;
 
-	params.getPictureSize(&new_picture_width, &new_picture_height);
-	if (0 < new_picture_width && 0 < new_picture_height) {
-		if (mV4L2Camera->setSnapshotSize(new_picture_width, new_picture_height) < 0) {
-			LOGE("ERR(%s):Fail on mV4L2Camera->setSnapshotSize(width(%d), height(%d))",
-                    		__func__, new_picture_width, new_picture_height);
-			ret = UNKNOWN_ERROR;
-		}else{
-			mParameters.setPictureSize(new_picture_width, new_picture_height);
-		}
-	}
-			
-	// picture format
-	const char *new_str_picture_format = params.getPictureFormat();
-	LOGD("%s : new_str_picture_format %s", __func__, new_str_picture_format);
-	if (new_str_picture_format != NULL) {
-		int new_picture_format = 0;
-		 if (!strcmp(new_str_picture_format, CameraParameters::PIXEL_FORMAT_RGB565))
-			new_picture_format = V4L2_PIX_FMT_RGB565;
-		else if (!strcmp(new_str_picture_format, CameraParameters::PIXEL_FORMAT_JPEG))
-			new_picture_format = V4L2_PIX_FMT_YUYV;
-		else
-			LOGE("ERR: not a supported picture format");
-		
-		if (mV4L2Camera->setSnapshotPixelFormat(new_picture_format) < 0) {
-			LOGE("ERR(%s):Fail on mV4L2Camera->setSnapshotPixelFormat(format(%d))", __func__, new_picture_format);
-			ret = UNKNOWN_ERROR;
-		} else {
-			mParameters.setPictureFormat(new_str_picture_format);
-		}
-	}
+    params.getPictureSize(&new_picture_width, &new_picture_height);
+    if (0 < new_picture_width && 0 < new_picture_height) {
+        if (mV4L2Camera->setSnapshotSize(new_picture_width, new_picture_height) < 0) {
+            LOGE("ERR(%s):Fail on mV4L2Camera->setSnapshotSize(width(%d), height(%d))",
+                 __func__, new_picture_width, new_picture_height);
+            ret = UNKNOWN_ERROR;
+        } else {
+            mParameters.setPictureSize(new_picture_width, new_picture_height);
+        }
+    }
 
-	// frame rate
-	int new_frame_rate = params.getPreviewFrameRate();
-	if (new_frame_rate != mParameters.getPreviewFrameRate()) {
-		mParameters.setPreviewFrameRate(new_frame_rate);
-	}
+    // picture format
+    const char *new_str_picture_format = params.getPictureFormat();
+    LOGD("%s : new_str_picture_format %s", __func__, new_str_picture_format);
+    if (new_str_picture_format != NULL) {
+        int new_picture_format = 0;
+        if (!strcmp(new_str_picture_format, CameraParameters::PIXEL_FORMAT_RGB565))
+            new_picture_format = V4L2_PIX_FMT_RGB565;
+        else if (!strcmp(new_str_picture_format, CameraParameters::PIXEL_FORMAT_JPEG))
+            new_picture_format = V4L2_PIX_FMT_YUYV;
+        else
+            LOGE("ERR: not a supported picture format");
 
-	int new_rotation = params.getInt(CameraParameters::KEY_ROTATION);
-        if (0 <= new_rotation) {
-            LOGD("%s : set orientation:%d\n", __func__, new_rotation);
+        if (mV4L2Camera->setSnapshotPixelFormat(new_picture_format) < 0) {
+            LOGE("ERR(%s):Fail on mV4L2Camera->setSnapshotPixelFormat(format(%d))", __func__, new_picture_format);
+            ret = UNKNOWN_ERROR;
+        } else {
+            mParameters.setPictureFormat(new_str_picture_format);
+        }
+    }
+
+    // frame rate
+    int new_frame_rate = params.getPreviewFrameRate();
+    if (new_frame_rate != mParameters.getPreviewFrameRate()) {
+        mParameters.setPreviewFrameRate(new_frame_rate);
+    }
+
+    int new_rotation = params.getInt(CameraParameters::KEY_ROTATION);
+    if (0 <= new_rotation) {
+        LOGD("%s : set orientation:%d\n", __func__, new_rotation);
         if (mV4L2Camera->SetRotate(new_rotation) < 0) {
             LOGE("ERR(%s):Fail on mV4L2Camera->SetRotate(%d)", __func__, new_rotation);
             ret = UNKNOWN_ERROR;
-            } else {
-                     mParameters.set(CameraParameters::KEY_ROTATION, new_rotation);
-                   }
+        } else {
+            mParameters.set(CameraParameters::KEY_ROTATION, new_rotation);
         }
+    }
 
-	const char *new_focus_mode_str = params.get(CameraParameters::KEY_FOCUS_MODE);
+    const char *new_focus_mode_str = params.get(CameraParameters::KEY_FOCUS_MODE);
 
-	// focus mode
-	if (new_focus_mode_str != NULL) {
-		int  new_focus_mode = -1;
-		if (!strcmp(new_focus_mode_str,
-			CameraParameters::FOCUS_MODE_AUTO)) {
-			}
-		else if (!strcmp(new_focus_mode_str,
-			CameraParameters::FOCUS_MODE_FIXED)) {
-			}
-		else {
-			LOGE("%s::unmatched focus_mode(%s)", __func__, new_focus_mode_str);
-			//ret = UNKNOWN_ERROR;
-			}
-		if (0 <= new_focus_mode) {
-			if (mV4L2Camera/*->setFocusMode(new_focus_mode) < 0*/) {
-				LOGE("%s::mV4L2Camera->setFocusMode(%d) fail", __func__, new_focus_mode);
+    // focus mode
+    if (new_focus_mode_str != NULL) {
+        int  new_focus_mode = -1;
+        if (!strcmp(new_focus_mode_str,
+                    CameraParameters::FOCUS_MODE_AUTO)) {
+        }
+        else if (!strcmp(new_focus_mode_str,
+                         CameraParameters::FOCUS_MODE_FIXED)) {
+        }
+        else {
+            LOGE("%s::unmatched focus_mode(%s)", __func__, new_focus_mode_str);
+            //ret = UNKNOWN_ERROR;
+        }
+        if (0 <= new_focus_mode) {
+            if (mV4L2Camera/*->setFocusMode(new_focus_mode) < 0*/) {
+                LOGE("%s::mV4L2Camera->setFocusMode(%d) fail", __func__, new_focus_mode);
                 ret = UNKNOWN_ERROR;
-				} else {
-				mParameters.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
-				}
-				}
-		}	
+            } else {
+                mParameters.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
+            }
+        }
+    }
 
-	return ret;
+    return ret;
 }
 
 CameraParameters CameraHardwareSam::getParameters() const
 {
-	LOGD("%s :", __func__);
-	return mParameters;
+    LOGD("%s :", __func__);
+    return mParameters;
 }
 
 void CameraHardwareSam::release()
 {
-	LOGD("%s :", __func__);
-  /* shut down any threads we have that might be running.  do it here
-     * instead of the destructor.  we're guaranteed to be on another thread
-     * than the ones below.  if we used the destructor, since the threads
-     * have a reference to this object, we could wind up trying to wait
-     * for ourself to exit, which is a deadlock.
-     */
-	if (mPreviewThread != NULL) {
+    LOGD("%s :", __func__);
+    /* shut down any threads we have that might be running.  do it here
+       * instead of the destructor.  we're guaranteed to be on another thread
+       * than the ones below.  if we used the destructor, since the threads
+       * have a reference to this object, we could wind up trying to wait
+       * for ourself to exit, which is a deadlock.
+       */
+    if (mPreviewThread != NULL) {
         /* this thread is normally already in it's threadLoop but blocked
          * on the condition variable or running.  signal it so it wakes
          * up and can exit.
          */
-		mPreviewThread->requestExit();
-		mExitPreviewThread = true;
-		mPreviewRunning = true; /* let it run so it can exit */
-		mPreviewCondition.signal();
-		mPreviewThread->requestExitAndWait();
-		mPreviewThread.clear();
-	}
-	if (mAutoFocusThread != NULL) {
+        mPreviewThread->requestExit();
+        mExitPreviewThread = true;
+        mPreviewRunning = true; /* let it run so it can exit */
+        mPreviewCondition.signal();
+        mPreviewThread->requestExitAndWait();
+        mPreviewThread.clear();
+    }
+    if (mAutoFocusThread != NULL) {
         /* this thread is normally already in it's threadLoop but blocked
          * on the condition variable.  signal it so it wakes up and can exit.
          */
@@ -865,12 +865,12 @@ void CameraHardwareSam::release()
         mAutoFocusThread->requestExitAndWait();
         mAutoFocusThread.clear();
     }
-	if (mPictureThread != NULL) {
-		mPictureThread->requestExitAndWait();
-		mPictureThread.clear();
-	}
-	
-	if (mRawHeap) {
+    if (mPictureThread != NULL) {
+        mPictureThread->requestExitAndWait();
+        mPictureThread.clear();
+    }
+
+    if (mRawHeap) {
         mRawHeap->release(mRawHeap);
         mRawHeap = 0;
     }
@@ -878,10 +878,10 @@ void CameraHardwareSam::release()
         mPreviewHeap->release(mPreviewHeap);
         mPreviewHeap = 0;
     }
-	
-	mV4L2Camera->DeinitCamera();
-	
-	mV4L2Camera = NULL;
+
+    mV4L2Camera->DeinitCamera();
+
+    mV4L2Camera = NULL;
 }
 
 bool CameraHardwareSam::YUY2toYV12(void *srcBuf, void *dstBuf, uint32_t srcWidth, uint32_t srcHeight)
@@ -916,8 +916,8 @@ bool CameraHardwareSam::YUY2toYV12(void *srcBuf, void *dstBuf, uint32_t srcWidth
             src_pos = src_y_start_pos + x;
             dstBufPointer[dst_cbcr_pos++] = srcBufPointer[src_pos + 3];
         }
-    }	
-    
+    }
+
     return true;
 }
 static CameraInfo sCameraInfo[] = {
@@ -950,7 +950,7 @@ static inline CameraHardwareSam *obj(struct camera_device *dev)
 
 /** Set the preview_stream_ops to which preview frames are sent */
 static int HAL_camera_device_set_preview_window(struct camera_device *dev,
-                                                struct preview_stream_ops *buf)
+        struct preview_stream_ops *buf)
 {
     LOGD("%s", __func__);
     return obj(dev)->setPreviewWindow(buf);
@@ -1118,7 +1118,7 @@ static int HAL_camera_device_recording_enabled(struct camera_device *dev)
  * responsibility to manage the life-cycle of the video recording frames.
  */
 static void HAL_camera_device_release_recording_frame(struct camera_device *dev,
-                                const void *opaque)
+        const void *opaque)
 {
     LOGV("%s", __func__);
     obj(dev)->releaseRecordingFrame(opaque);
@@ -1171,7 +1171,7 @@ static int HAL_camera_device_cancel_picture(struct camera_device *dev)
  * invalid or not supported.
  */
 static int HAL_camera_device_set_parameters(struct camera_device *dev,
-                                            const char *parms)
+        const char *parms)
 {
     LOGV("%s", __func__);
     String8 str(parms);
@@ -1199,7 +1199,7 @@ void HAL_camera_device_put_parameters(struct camera_device *dev, char *parms)
  * Send command to camera driver.
  */
 static int HAL_camera_device_send_command(struct camera_device *dev,
-                    int32_t cmd, int32_t arg1, int32_t arg2)
+        int32_t cmd, int32_t arg1, int32_t arg2)
 {
     LOGV("%s", __func__);
     return obj(dev)->sendCommand(cmd, arg1, arg2);
@@ -1240,29 +1240,29 @@ static int HAL_getCameraInfo(int cameraId, struct camera_info *cameraInfo)
 #define SET_METHOD(m) m : HAL_camera_device_##m
 
 static camera_device_ops_t camera_device_ops = {
-        SET_METHOD(set_preview_window),
-        SET_METHOD(set_callbacks),
-        SET_METHOD(enable_msg_type),
-        SET_METHOD(disable_msg_type),
-        SET_METHOD(msg_type_enabled),
-        SET_METHOD(start_preview),
-        SET_METHOD(stop_preview),
-        SET_METHOD(preview_enabled),
-        SET_METHOD(store_meta_data_in_buffers),
-        SET_METHOD(start_recording),
-        SET_METHOD(stop_recording),
-        SET_METHOD(recording_enabled),
-        SET_METHOD(release_recording_frame),
-        SET_METHOD(auto_focus),
-        SET_METHOD(cancel_auto_focus),
-        SET_METHOD(take_picture),
-        SET_METHOD(cancel_picture),
-        SET_METHOD(set_parameters),
-        SET_METHOD(get_parameters),
-        SET_METHOD(put_parameters),
-        SET_METHOD(send_command),
-        SET_METHOD(release),
-        SET_METHOD(dump),
+    SET_METHOD(set_preview_window),
+    SET_METHOD(set_callbacks),
+    SET_METHOD(enable_msg_type),
+    SET_METHOD(disable_msg_type),
+    SET_METHOD(msg_type_enabled),
+    SET_METHOD(start_preview),
+    SET_METHOD(stop_preview),
+    SET_METHOD(preview_enabled),
+    SET_METHOD(store_meta_data_in_buffers),
+    SET_METHOD(start_recording),
+    SET_METHOD(stop_recording),
+    SET_METHOD(recording_enabled),
+    SET_METHOD(release_recording_frame),
+    SET_METHOD(auto_focus),
+    SET_METHOD(cancel_auto_focus),
+    SET_METHOD(take_picture),
+    SET_METHOD(cancel_picture),
+    SET_METHOD(set_parameters),
+    SET_METHOD(get_parameters),
+    SET_METHOD(put_parameters),
+    SET_METHOD(send_command),
+    SET_METHOD(release),
+    SET_METHOD(dump),
 };
 
 #undef SET_METHOD
@@ -1285,7 +1285,7 @@ static int HAL_camera_device_open(const struct hw_module_t* module,
             goto done;
         } else {
             LOGE("Cannot open camera %d. camera %d is already running!",
-                    cameraId, obj(g_cam_device)->getCameraId());
+                 cameraId, obj(g_cam_device)->getCameraId());
             return -ENOSYS;
         }
     }
@@ -1312,22 +1312,23 @@ done:
 }
 
 static hw_module_methods_t camera_module_methods = {
-            open : HAL_camera_device_open
+    open : HAL_camera_device_open
 };
 
 extern "C" {
     struct camera_module HAL_MODULE_INFO_SYM = {
-      common : {
-          tag           : HARDWARE_MODULE_TAG,
-          version_major : 1,
-          version_minor : 0,
-          id            : CAMERA_HARDWARE_MODULE_ID,
-          name          : "Sama5d3 camera HAL",
-          author        : "Atmel Corporation",
-          methods       : &camera_module_methods,
-      },
-      get_number_of_cameras : HAL_getNumberOfCameras,
-      get_camera_info       : HAL_getCameraInfo
+    common :
+        {
+            tag: HARDWARE_MODULE_TAG,
+            version_major : 1,
+            version_minor : 0,
+            id: CAMERA_HARDWARE_MODULE_ID,
+            name: "Sama5d3 camera HAL",
+            author: "Atmel Corporation",
+            methods:&camera_module_methods,
+        },
+        get_number_of_cameras: HAL_getNumberOfCameras,
+        get_camera_info: HAL_getCameraInfo
     };
 }
 

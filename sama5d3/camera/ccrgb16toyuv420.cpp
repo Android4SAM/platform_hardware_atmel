@@ -23,13 +23,13 @@ OSCL_EXPORT_REF CCRGB16toYUV420* CCRGB16toYUV420 :: New()
 {
     CCRGB16toYUV420* self = new CCRGB16toYUV420();
     return self;
- //   return static_cast <ColorConvertBase*>(self);
+//   return static_cast <ColorConvertBase*>(self);
 }
 
 
 CCRGB16toYUV420::CCRGB16toYUV420()
 {
-	_mInitialized = false;
+    _mInitialized = false;
 }
 
 
@@ -72,7 +72,7 @@ int32 CCRGB16toYUV420:: Init(int32 Src_width, int32 Src_height, int32 Src_pitch,
 
     if (_mInitialized == true)
     {
-	freeRGB2YUVTables();
+        freeRGB2YUVTables();
         _mInitialized = false;
     }
 
@@ -211,8 +211,8 @@ int32 CCRGB16toYUV420::Convert(uint8 *rgb16, uint8 *yuv420)
 
 int16 CCRGB16toYUV420::GetCapability()
 {
-	/* Not implement */
-	return static_cast <int16>(0);
+    /* Not implement */
+    return static_cast <int16>(0);
 }
 
 extern "C"

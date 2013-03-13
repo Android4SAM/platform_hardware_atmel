@@ -91,19 +91,19 @@ struct ISI_buffer {
  * VIDIOC_G_PARM and VIDIOC_S_PARM
  */
 struct sam_cam_parm {
-	/* 1: use_preview; 0: use_capture */
-	bool use_preview;
+    /* 1: use_preview; 0: use_capture */
+    bool use_preview;
 };
 
 enum v4l2_focusmode {
-        FOCUS_MODE_AUTO = 0,
-        FOCUS_MODE_MACRO,
-        FOCUS_MODE_FACEDETECT,
-        FOCUS_MODE_AUTO_DEFAULT,
-        FOCUS_MODE_MACRO_DEFAULT,
-        FOCUS_MODE_FACEDETECT_DEFAULT,
-        FOCUS_MODE_INFINITY,
-        FOCUS_MODE_MAX,
+    FOCUS_MODE_AUTO = 0,
+    FOCUS_MODE_MACRO,
+    FOCUS_MODE_FACEDETECT,
+    FOCUS_MODE_AUTO_DEFAULT,
+    FOCUS_MODE_MACRO_DEFAULT,
+    FOCUS_MODE_FACEDETECT_DEFAULT,
+    FOCUS_MODE_INFINITY,
+    FOCUS_MODE_MAX,
 };
 
 class V4L2Camera {
@@ -115,7 +115,7 @@ public:
         CAMERA_ID_FRONT = 1,
     };
 
-    V4L2Camera(); 
+    V4L2Camera();
     ~V4L2Camera();
 
     static V4L2Camera* createInstance(void)
@@ -123,7 +123,7 @@ public:
         static V4L2Camera singleton;
         return &singleton;
     }
-    
+
     int             initCamera(int index);
     void           resetCamera();
     void           DeinitCamera();
@@ -153,7 +153,7 @@ public:
     int             getSnapshotPixelFormat(void);
     int             startSnapshot(void *rawbuf);
     int             stopSnapshot(void);
-    
+
     int             SetRotate(int angle);
     int             getRotate(void);
     int             zoomIn(void);
@@ -162,19 +162,19 @@ public:
     int             getZoom(void);
     int             previewPoll(bool preview);
     void           getPostViewConfig(int*, int*, int*);
-    
+
     int             readjpeg (void *previewBuffer,int fileSize);
     int             SavePicture(void);
     int             savePicture(unsigned char *inputBuffer, const char * filename);
     void          convert(void *buf, void *rgb, int width, int height);
     void          rgb16TOyuv420(void *rgb16, void *yuv420);
-	bool                	       mCaptureInProgress;
-    
+    bool                	       mCaptureInProgress;
+
 private:
     v4l2_streamparm m_streamparm;
-	struct sam_cam_parm   *m_params;
+    struct sam_cam_parm   *m_params;
     int             m_flag_init;
-    int             m_camera_id;    
+    int             m_camera_id;
     int             m_cam_fd;
     int             m_angle;
     int             m_zoom_level;
@@ -191,17 +191,17 @@ private:
     int             m_snapshot_width;
     int             m_snapshot_height;
     int             m_snapshot_max_width;
-    int             m_snapshot_max_height;    
+    int             m_snapshot_max_height;
 
     struct       pollfd   m_events_c;
     struct       ISI_buffer m_capture_buf;
     inline int      m_frameSize(int format, int width, int height);
-    
+
     /* RGB->YUV conversion */
     CCRGB16toYUV420 *ccRGBtoYUV;
     int saveYUYVtoJPEG (unsigned char *inputBuffer, int width, int height, FILE *file, int quality);
 
-	
+
 };
 
 }; // namespace android
