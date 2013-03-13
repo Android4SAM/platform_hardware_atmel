@@ -198,7 +198,7 @@ int window_mmap(struct hwc_win_info_t *win)
 
     for (int k = 0; k < NUM_OF_WIN_BUF; k++) {
         win->vir_addr[k] = intptr_t(win->base) + (win->size * k);
-        LOGD("%s::win vir_add[%d] 0x%p", __func__, k, win->vir_addr[k]);
+        LOGD("%s::win vir_add[%d] 0x%d", __func__, k, win->vir_addr[k]);
     }
 
     return 0;

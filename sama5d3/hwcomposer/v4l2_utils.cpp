@@ -85,7 +85,7 @@ int v4l2_overlay_close(struct hwc_win_info_t_heo *win)
     if (0 <= win->fd){
         /* ummap */
         if (!win->zero_copy) {
-            for (int i = 0; i < win->num_of_buffer; i++) {
+            for (unsigned int i = 0; i < win->num_of_buffer; i++) {
                 v4l2_overlay_unmap_buf(win->buffers[i], win->buffers_len[i]);
             }
         }
@@ -215,7 +215,7 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
 		pix->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
     default:
-        LOGE("%s: unknow format %d", fmt);
+        LOGE("%s: unknow format %d", __func__, fmt);
         return -1;
     }
     pix->width = w;

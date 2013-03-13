@@ -81,7 +81,7 @@ static int copy_src_content(hwc_layer_t *cur_layer,
     if(MAX_NUM_OF_WIN <= win_idx)
         return -1;
 
-    for (int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
+    for (unsigned int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
         int w = cur_rect->right - cur_rect->left;
         int h = cur_rect->bottom - cur_rect->top;
         uint8_t *cur_dst_addr = dst_addr;
@@ -141,7 +141,7 @@ static int copy_heo_src_content(hwc_layer_t *cur_layer,
 			return 0;
 	}
 
-    for (int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
+    for (unsigned int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
         uint8_t *cur_dst_addr = dst_addr;
         uint8_t *cur_src_addr = src_addr;
 
@@ -376,7 +376,7 @@ static int assign_heo_overlay_window(struct hwc_context_t *ctx,
     }
 
     if (!win->zero_copy) {
-        for (int i = 0; i < win->num_of_buffer; i++) {
+        for (unsigned int i = 0; i < win->num_of_buffer; i++) {
             v4l2_overlay_unmap_buf(win->buffers[i], win->buffers_len[i]);
         }
     }
@@ -419,7 +419,7 @@ static int assign_heo_overlay_window(struct hwc_context_t *ctx,
     }
 
     if (!win->zero_copy) {
-        for (int j = 0; j < win->num_of_buffer; j++) {
+        for (unsigned int j = 0; j < win->num_of_buffer; j++) {
             ret = v4l2_overlay_map_buf(win->fd, j, &win->buffers[j], &win->buffers_len[j]);
             if (ret) {
                 LOGE("%s: Failed mapping buffers", __func__);
@@ -459,11 +459,11 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
         return 0;
 
     //all the windows are free here....
-    for (int i = 0; i < ctx->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_ovl; i++) {
         ctx->win[i].status = HWC_WIN_FREE;
     }
 
-    for (int i = 0; i < ctx->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_heo; i++) {
         ctx->win_heo[i].status = HWC_WIN_FREE;
     }
     
@@ -500,7 +500,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
                     }
                     overlay_win_heo_cnt--;
                 } else {
-                    LOGE("%s: unknow usage type %d", usage);
+                    LOGE("%s: unknow usage type %d", __func__, usage);
                     continue;
                 }
                 
@@ -564,13 +564,13 @@ static int hwc_set(hwc_composer_device_t *dev,
 
     if (!list) {
         /* turn off the all windows */
-        for (int i = 0; i < ctx->num_of_avail_ovl; i++) {
+        for (unsigned int i = 0; i < ctx->num_of_avail_ovl; i++) {
             reset_win_rect_info(&ctx->win[i]);
             ctx->win[i].status = HWC_WIN_FREE;
         }
 
         /* turn off the all heo layers */
-        for (int i = 0; i < ctx->num_of_avail_heo; i++) {
+        for (unsigned int i = 0; i < ctx->num_of_avail_heo; i++) {
             reset_heo_win_rect_info(&ctx->win_heo[i]);
             ctx->win_heo[i].status = HWC_WIN_FREE;
         }        
@@ -605,7 +605,7 @@ static int hwc_set(hwc_composer_device_t *dev,
 
             if (cur->compositionType == HWC_OVERLAY) {
                 if(copy_src_content(cur, win,i) < 0){
-                    LOGE("%s:: win-id: %d, failed to copy data to overlay frame buffer", i, __func__);
+                    LOGE("%s:: win-id: %d, failed to copy data to overlay frame buffer", __func__, i);
                     continue;
                 }
                 
@@ -623,7 +623,7 @@ static int hwc_set(hwc_composer_device_t *dev,
     }
 
     /* copy the content of heo layers here */
-    for (uint32_t i = 0; i < ctx->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_heo; i++) {
         win_heo = &ctx->win_heo[i];
         if (win_heo->status == HWC_WIN_RESERVED) {
             cur = &list->hwLayers[win_heo->layer_index];
@@ -638,7 +638,7 @@ static int hwc_set(hwc_composer_device_t *dev,
             
             if (cur->compositionType == HWC_OVERLAY) {
                 if(copy_heo_src_content(cur, win_heo,i) < 0){
-                    LOGE("%s:: heo-id: %d, failed to copy data to overlay frame buffer", i, __func__);
+                    LOGE("%s:: heo-id: %d, failed to copy data to overlay frame buffer", __func__, i);
                     continue;
                 }
             } else {
@@ -653,7 +653,7 @@ static int hwc_set(hwc_composer_device_t *dev,
         }
     }
 
-    for (uint32_t i = 0; i < ctx->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_ovl; i++) {
         win = &ctx->win[i];
         if(win->status == HWC_WIN_RELEASE) {
             reset_win_rect_info(win);
@@ -661,7 +661,7 @@ static int hwc_set(hwc_composer_device_t *dev,
         }
     }
 
-    for (uint32_t i = 0; i < ctx->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_heo; i++) {
         win_heo = &ctx->win_heo[i];
         if(win_heo->status == HWC_WIN_RELEASE) {
             reset_heo_win_rect_info(win_heo);
@@ -679,14 +679,14 @@ static int hwc_device_close(struct hw_device_t *dev)
     int i;
 
     if (ctx) {
-        for (i = 0; i < ctx->num_of_avail_ovl; i++) {
+        for (unsigned i = 0; i < ctx->num_of_avail_ovl; i++) {
             if (window_close(&ctx->win[i]) < 0) {
                 LOGE("%s::window_close() fail", __func__);
                 ret = -1;
             }
         }
 
-        for (i=0; i < ctx->num_of_avail_heo; i++) {
+        for (unsigned i=0; i < ctx->num_of_avail_heo; i++) {
             if (v4l2_overlay_close(&ctx->win_heo[i]) < 0) {
                 LOGE("%s::v4l2_overlay_close() fail", __func__);
                 ret = -1;
@@ -750,7 +750,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     }
 
     /* open Ovrlayer here */
-    for (int i = 0; i < dev->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_ovl; i++) {
         if (window_open(&(dev->win[i]), i) < 0) {
             LOGE("%s:: Failed to open window %d device ", __func__, i);
             dev->num_of_avail_ovl--;
@@ -778,7 +778,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         dev->num_of_avail_heo = NUM_OF_HEO_WIN;
     }
 
-    for (int i = 0; i < NUM_OF_HEO_WIN - dev->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < NUM_OF_HEO_WIN - dev->num_of_avail_heo; i++) {
         if (v4l2_overlay_close(&(dev->win_heo[dev->num_of_avail_heo + i])) == 0) {
             LOGV("%s:: Closing heo layer %d device ", __func__, i);
         }
@@ -796,7 +796,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     dev->lcd_info.yres_virtual = dev->lcd_info.yres * 2;
 
     /* initialize the window context */
-    for (int i = 0; i < dev->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_ovl; i++) {
         win = &dev->win[i];
         memcpy(&win->lcd_info, &dev->lcd_info, sizeof(struct fb_var_screeninfo));
         
@@ -857,7 +857,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
          
     }
 
-    for (int i = 0; i < dev->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_heo; i++) {
         win_heo = &dev->win_heo[i];
         memcpy(&win_heo->lcd_info, &dev->lcd_info, sizeof(struct fb_var_screeninfo));
     }
@@ -866,12 +866,12 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     return 0;
 
 err:
-    for (int i = 0; i < dev->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_ovl; i++) {
         if (window_close(&dev->win[i]) < 0)
             LOGE("%s::window_close() fail", __func__);
     }
     
-    for (int i = 0; i < dev->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_heo; i++) {
         if (v4l2_overlay_close(&dev->win_heo[i]) < 0)
             LOGE("%s::window_close() fail", __func__);
     }
