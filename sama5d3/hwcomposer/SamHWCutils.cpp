@@ -21,9 +21,9 @@
  *
  */
 
- #include "common.h"
+#include "common.h"
 
- int window_open(struct hwc_win_info_t *win, int id)
+int window_open(struct hwc_win_info_t *win, int id)
 {
     char name[64];
 
@@ -43,8 +43,8 @@
 
     win->fd = open(name, O_RDWR);
     if (win->fd < 0) {
-		LOGE("%s::Failed to open window device (%s) : %s",
-				__func__, strerror(errno), name);
+        LOGE("%s::Failed to open window device (%s) : %s",
+             __func__, strerror(errno), name);
         goto error;
     }
 
@@ -53,7 +53,7 @@
         goto error;
     }
     if (strcmp(win->fix_info.id, "atmel_hlcdfb_ovl")
-		&& strcmp(win->fix_info.id, "atmel_hlcdfb_bas")) {
+            && strcmp(win->fix_info.id, "atmel_hlcdfb_bas")) {
         LOGE("%s is not a atmel lcd fb device \n", win->fix_info.id);
         return -1;
     }
@@ -76,10 +76,10 @@ int window_close(struct hwc_win_info_t *win)
 {
     int ret = 0;
     LOGD("%s, close fd %d", __func__, win->fd);
-    if (0 <= win->fd){
+    if (0 <= win->fd) {
         window_munmap(win);
         ret = close(win->fd);
-    }    
+    }
     win->fd = -1;
 
     return ret;
@@ -158,9 +158,9 @@ int window_set_pos(struct hwc_win_info_t *win)
     win->var_info.nonstd |= 1 << 31;
     if (ioctl(win->fd, FBIOPUT_VSCREENINFO, &(win->var_info)) < 0) {
         LOGE("%s::FBIOPUT_VSCREENINFO(fd:%d, w:%d, h:%d) fail",
-          		__func__, win->fd, win->rect_info.w, win->rect_info.h);
+             __func__, win->fd, win->rect_info.w, win->rect_info.h);
         return -1;
-    }    
+    }
     return 0;
 }
 
@@ -180,7 +180,7 @@ int window_reset_pos(struct hwc_win_info_t *win)
 
     if (ioctl(win->fd, FBIOPUT_VSCREENINFO, &(win->var_info)) < 0) {
         LOGE("%s::FBIOPUT_VSCREENINFO(fd:%d, w:%d, h:%d) fail",
-          		__func__, win->fd, win->rect_info.w, win->rect_info.h);
+             __func__, win->fd, win->rect_info.w, win->rect_info.h);
         return -1;
     }
     return 0;
@@ -190,7 +190,7 @@ int window_mmap(struct hwc_win_info_t *win)
 {
     size_t fbSize = roundUpToPageSize(win->size * NUM_OF_WIN_BUF);
     win->base = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, win->fd, 0);
-    
+
     if (win->base == MAP_FAILED) {
         LOGE("Error mapping the framebuffer (%s)", strerror(errno));
         return -errno;
@@ -206,14 +206,14 @@ int window_mmap(struct hwc_win_info_t *win)
 
 int window_munmap(struct hwc_win_info_t *win)
 {
-    if(win->base != NULL){
+    if(win->base != NULL) {
         munmap (win->base, win->size * NUM_OF_WIN_BUF);
         win->base = NULL;
         for (int k = 0; k < NUM_OF_WIN_BUF; k++) {
             win->vir_addr[k] = intptr_t(NULL);
         }
     }
-    
+
     return 0;
 }
 
@@ -225,8 +225,8 @@ int window_pan_display(struct hwc_win_info_t *win)
 
     if (ioctl(win->fd, FBIOPAN_DISPLAY, lcd_info) < 0) {
         LOGE("%s::FBIOPAN_DISPLAY(%d / %d / %d) fail(%s)",
-            	__func__, lcd_info->yres, win->buf_index, lcd_info->yres_virtual,
-            strerror(errno));
+             __func__, lcd_info->yres, win->buf_index, lcd_info->yres_virtual,
+             strerror(errno));
         return -1;
     }
     return 0;
@@ -237,11 +237,11 @@ int window_show(struct hwc_win_info_t *win)
     win->var_info.nonstd |= 1 << 31;
 
     if(win->power_state == 0) {
-    	if (ioctl(win->fd, FBIOPUT_VSCREENINFO, &(win->var_info)) < 0) {
-        	LOGE("%s::FBIOPUT_VSCREENINFO(fd:%d, w:%d, h:%d) fail",
-          		__func__, win->fd, win->rect_info.w, win->rect_info.h);
-       		return -1;
-    	}
+        if (ioctl(win->fd, FBIOPUT_VSCREENINFO, &(win->var_info)) < 0) {
+            LOGE("%s::FBIOPUT_VSCREENINFO(fd:%d, w:%d, h:%d) fail",
+                 __func__, win->fd, win->rect_info.w, win->rect_info.h);
+            return -1;
+        }
         win->power_state = 1;
     }
     return 0;
@@ -251,11 +251,11 @@ int window_hide(struct hwc_win_info_t *win)
 {
     win->var_info.nonstd = 0;
     if (win->power_state == 1) {
-    	/*if (ioctl(win->fd, FBIOPUT_VSCREENINFO, &(win->var_info)) < 0) {
+        /*if (ioctl(win->fd, FBIOPUT_VSCREENINFO, &(win->var_info)) < 0) {
         	LOGE("%s::FBIOPUT_VSCREENINFO(fd:%d, w:%d, h:%d) fail",
           		__func__, win->fd, win->rect_info.w, win->rect_info.h);
-       		return -1;
-    	}*/
+        	return -1;
+        }*/
         win->power_state = 0;
     }
     return 0;
@@ -279,7 +279,7 @@ int window_get_global_lcd_info(struct fb_var_screeninfo *lcd_info)
 
 fun_err:
     if (window_close(&win) < 0)
-        LOGE("%s::baselayer close fail", __func__);   
+        LOGE("%s::baselayer close fail", __func__);
 
     return ret;
 }

@@ -62,7 +62,7 @@ struct hwc_win_info_t {
     int        status;
     int        vsync;
     void*    base;
-    uint32_t layer_prev_format;	
+    uint32_t layer_prev_format;
 
     struct fb_fix_screeninfo fix_info;
     struct fb_var_screeninfo var_info;

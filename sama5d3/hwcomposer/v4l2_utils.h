@@ -16,7 +16,7 @@ struct hwc_win_info_t_heo {
     void       **buffers;
     size_t     *buffers_len;
     uint32_t   num_of_buffer;
-	uint32_t   qd_buf_count;
+    uint32_t   qd_buf_count;
     int        buf_index;
     int        power_state;
     int        blending;
@@ -26,13 +26,13 @@ struct hwc_win_info_t_heo {
     int        status;
     int        vsync;
     void*    base;
-    uint32_t layer_prev_format;	
+    uint32_t layer_prev_format;
 
     bool      zero_copy;
     bool      steamEn;
 
     struct fb_fix_screeninfo fix_info;
-    struct fb_var_screeninfo lcd_info;    
+    struct fb_var_screeninfo lcd_info;
 };
 
 
@@ -53,7 +53,7 @@ int v4l2_overlay_get_input_size(int fd, uint32_t *w, uint32_t *h,
                                 uint32_t *fmt);
 int v4l2_overlay_set_position(struct hwc_win_info_t_heo *win);
 int v4l2_overlay_get_position(int fd, int32_t *x, int32_t *y, int32_t *w,
-        int32_t *h);
+                              int32_t *h);
 int v4l2_overlay_set_flip(int fd, int degree);
 int v4l2_overlay_set_rotation(int fd, int degree, int step);
 
@@ -90,8 +90,8 @@ struct mapping_data {
 
 typedef unsigned int dma_addr_t;
 struct fimc_buf {
-	dma_addr_t	base[3];
- 	size_t		length[3];
+    dma_addr_t	base[3];
+    size_t		length[3];
 };
 
 #define ALL_BUFFERS_FLUSHED -66

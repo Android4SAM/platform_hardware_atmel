@@ -61,7 +61,7 @@ struct private_handle_t : public native_handle {
 struct private_handle_t {
     struct native_handle nativeHandle;
 #endif
-    
+
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001
     };
@@ -77,10 +77,10 @@ struct private_handle_t {
     // FIXME: the attributes below should be out-of-line
     int     base;
     int     pid;
-	// ADD: By embest, we want the buffer message for hwcomposer
-	int     iFormat;
-	//Note: bits per pixel (32 for RGBA8888)
-	int    uiBpp;
+    // ADD: By embest, we want the buffer message for hwcomposer
+    int     iFormat;
+    //Note: bits per pixel (32 for RGBA8888)
+    int    uiBpp;
 
 #ifdef __cplusplus
     static const int sNumInts = 8;
@@ -103,7 +103,7 @@ struct private_handle_t {
         const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
                 h->numInts != sNumInts || h->numFds != sNumFds ||
-                hnd->magic != sMagic) 
+                hnd->magic != sMagic)
         {
             LOGE("invalid gralloc handle (at %p)", h);
             return -EINVAL;

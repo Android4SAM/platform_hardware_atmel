@@ -50,7 +50,7 @@ int v4l2_overlay_open(struct hwc_win_info_t_heo *win, const char *dir)
     win->fd = open(name, O_RDWR);
     if (win->fd < 0) {
         LOGE("%s::Failed to open window device (%s) : %s",
-				__func__, strerror(errno), name);
+             __func__, strerror(errno), name);
         goto error;
     }
 
@@ -73,7 +73,7 @@ error:
     if (0 <= win->fd)
         close(win->fd);
     win->fd = -1;
-    
+
     return -1;
 
 }
@@ -82,7 +82,7 @@ int v4l2_overlay_close(struct hwc_win_info_t_heo *win)
 {
     int ret = 0;
     LOGD("%s, close fd %d", __func__, win->fd);
-    if (0 <= win->fd){
+    if (0 <= win->fd) {
         /* ummap */
         if (!win->zero_copy) {
             for (unsigned int i = 0; i < win->num_of_buffer; i++) {
@@ -103,7 +103,7 @@ int v4l2_overlay_close(struct hwc_win_info_t_heo *win)
     if(win->buffers)
         delete [] win->buffers;
     if(win->buffers_len)
-        delete [] win->buffers_len;      
+        delete [] win->buffers_len;
 
     return ret;
 }
@@ -202,7 +202,7 @@ static int v4l2_overlay_ioctl(int fd, int req, void *arg, const char* msg)
 #define V4L2_PIX_FMT_NV12T       v4l2_fourcc('T', 'V', '1', '2')
 
 int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
-        uint32_t w, uint32_t h)
+                     uint32_t w, uint32_t h)
 {
     LOG_FUNCTION_NAME
     int fd;
@@ -211,9 +211,9 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
     case HAL_PIXEL_FORMAT_YV12:
         pix->pixelformat = V4L2_PIX_FMT_NV12;
         break;
-	case HAL_PIXEL_FORMAT_YCbCr_422_I:
-		pix->pixelformat = V4L2_PIX_FMT_YUYV;
-		break;
+    case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        pix->pixelformat = V4L2_PIX_FMT_YUYV;
+        break;
     default:
         LOGE("%s: unknow format %d", __func__, fmt);
         return -1;
@@ -224,7 +224,7 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
 }
 
 static void configure_window(struct v4l2_window *win, int32_t w,
-        int32_t h, int32_t x, int32_t y)
+                             int32_t h, int32_t x, int32_t y)
 {
     LOG_FUNCTION_NAME
 
@@ -235,7 +235,7 @@ static void configure_window(struct v4l2_window *win, int32_t w,
 }
 
 void get_window(struct v4l2_format *format, int32_t *x,
-        int32_t *y, int32_t *w, int32_t *h)
+                int32_t *y, int32_t *w, int32_t *h)
 {
     LOG_FUNCTION_NAME
 
@@ -296,7 +296,7 @@ int v4l2_overlay_init(struct hwc_win_info_t_heo *win)
 }
 
 int v4l2_overlay_get_input_size_and_format(int fd, uint32_t *w, uint32_t *h
-                                                 , uint32_t *fmt)
+        , uint32_t *fmt)
 {
     LOG_FUNCTION_NAME
 
@@ -328,20 +328,20 @@ int v4l2_overlay_set_position(struct hwc_win_info_t_heo *win)
     /* configure the dst v4l2_overlay window */
     format.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format,
-            "get v4l2_overlay format");
+                             "get v4l2_overlay format");
     if (ret)
         return ret;
     LOGV("v4l2_overlay_set_position:: w=%d h=%d", format.fmt.win.w.width
-                                                , format.fmt.win.w.height);
+         , format.fmt.win.w.height);
 
     configure_window(&format.fmt.win, rot_w, rot_h, rot_x, rot_y);
 
     format.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format,
-            "set v4l2_overlay format");
+                             "set v4l2_overlay format");
 
     LOGV("v4l2_overlay_set_position:: w=%d h=%d rotation=%d"
-                 , format.fmt.win.w.width, format.fmt.win.w.height, rotation);
+         , format.fmt.win.w.width, format.fmt.win.w.height, rotation);
 
     if (ret)
         return ret;
@@ -358,7 +358,7 @@ int v4l2_overlay_get_position(int fd, int32_t *x, int32_t *y, int32_t *w,
 
     format.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format,
-                                 "get v4l2_overlay format");
+                             "get v4l2_overlay format");
 
     if (ret)
         return ret;
@@ -372,14 +372,14 @@ int v4l2_overlay_set_flip(int fd, int flip)
 {
     LOG_FUNCTION_NAME
 
-	return 0;
+    return 0;
 }
 
 int v4l2_overlay_set_rotation(int fd, int degree, int step)
 {
     LOG_FUNCTION_NAME
 
-	return 0;
+    return 0;
 }
 
 int v4l2_overlay_req_buf(struct hwc_win_info_t_heo *win)
@@ -398,7 +398,7 @@ int v4l2_overlay_req_buf(struct hwc_win_info_t_heo *win)
     ret = ioctl(win->fd, VIDIOC_REQBUFS, &reqbuf);
     if (ret) {
         error(win->fd, "reqbuf ioctl");
-		LOGE("VIDIOC_REQBUFS ERROR");
+        LOGE("VIDIOC_REQBUFS ERROR");
         return ret;
     }
 
@@ -409,9 +409,9 @@ int v4l2_overlay_req_buf(struct hwc_win_info_t_heo *win)
         error(win->fd, "Not enough buffer structs passed to get_buffers");
         return -ENOMEM;
     }
-	
+
     if ((reqbuf.count == 0) && (reqbuf.count != win->num_of_buffer)) {
-        LOGE("request buffer error, get 0 buffer");		
+        LOGE("request buffer error, get 0 buffer");
         return -ENOSPC;
     }
     win->num_of_buffer = reqbuf.count;
@@ -428,14 +428,14 @@ static int is_queued(struct v4l2_buffer *buf)
 {
     /* is either on the input or output queue in the kernel */
     return (buf->flags & V4L2_BUF_FLAG_QUEUED) ||
-        (buf->flags & V4L2_BUF_FLAG_DONE);
+           (buf->flags & V4L2_BUF_FLAG_DONE);
 }
 
 static int is_dequeued(struct v4l2_buffer *buf)
 {
     /* is on neither input or output queue in kernel */
     return !(buf->flags & V4L2_BUF_FLAG_QUEUED) &&
-            !(buf->flags & V4L2_BUF_FLAG_DONE);
+           !(buf->flags & V4L2_BUF_FLAG_DONE);
 }
 
 int v4l2_overlay_query_buffer(int fd, int index, struct v4l2_buffer *buf)
@@ -470,7 +470,7 @@ int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len)
 
     *len = buf.length;
     *start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED,
-            fd, buf.m.offset);
+                  fd, buf.m.offset);
     if (*start == MAP_FAILED) {
         LOGE("map failed, length=%u offset=%u\n", buf.length, buf.m.offset);
         return -EINVAL;
@@ -498,7 +498,7 @@ int v4l2_overlay_stream_on(struct hwc_win_info_t_heo *win)
         }
     } else {
         LOGV("%s: stream has already on");
-    }    
+    }
 
     return ret;
 }
@@ -544,7 +544,7 @@ int v4l2_overlay_q_buf(int fd, int buffer, int zerocopy)
         fimc_src_buf.base[0] = (dma_addr_t) pPhyYAddr;
         fimc_src_buf.base[1] = (dma_addr_t) pPhyCAddr;
         fimc_src_buf.base[2] =
-               (dma_addr_t) (pPhyCAddr + (pPhyCAddr - pPhyYAddr)/4);
+            (dma_addr_t) (pPhyCAddr + (pPhyCAddr - pPhyYAddr)/4);
 
         buf.index = index;
         buf.memory      = V4L2_MEMORY_USERPTR;
