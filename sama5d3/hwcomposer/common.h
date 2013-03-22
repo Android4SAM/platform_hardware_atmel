@@ -14,7 +14,7 @@
 
 #define NUM_OF_FB             (3)
 #define MAX_NUM_OF_WIN (NUM_OF_FB - 1) //Plus 1, it is fb0
-#define NUM_OF_WIN_BUF      (1)
+#define NUM_OF_WIN_BUF      (2)
 
 #define MAX_NUM_OF_HEO (1)
 #define NUM_OF_HEO_BUF (3)

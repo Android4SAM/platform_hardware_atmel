@@ -579,30 +579,11 @@ static int hwc_set(hwc_composer_device_t *dev,
         return 0;
     }
 
-    /* compose the hardware layers here */
-    // Base layer
-    if (need_swap_buffers || !list) {
-        EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
-        if (!sucess) {
-            LOGE("%s: eglSwapBuffers failed", __func__);
-            return HWC_EGL_ERROR;
-        }
-    }
-
     /* copy the content of hardware layers here */
-    for (int32_t i = ctx->num_of_avail_ovl-1; i >= 0; i--) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_ovl; i++) {
         win = &ctx->win[i];
         if (win->status == HWC_WIN_RESERVED) {
             cur = &list->hwLayers[win->layer_index];
-            if (win->set_win_flag == 1) {
-                /* set the window position with new conf..., don't allow failed */
-                if (window_set_pos(win) < 0) {
-                    LOGE("Emergency error (%s) ::window_set_pos is failed : %s", __func__,
-                         strerror(errno));
-                    continue;
-                }
-                win->set_win_flag = 0;
-            }
 
             if (cur->compositionType == HWC_OVERLAY) {
                 if(copy_src_content(cur, win,i) < 0) {
@@ -616,6 +597,17 @@ static int hwc_set(hwc_composer_device_t *dev,
                 win->status = HWC_WIN_RELEASE;
                 continue;
             }
+
+            if (win->set_win_flag == 1) {
+            /* set the window position with new conf..., don't allow failed */
+                if (window_set_pos(win) < 0) {
+                    LOGE("Emergency error (%s) ::window_set_pos is failed : %s", __func__,
+                                strerror(errno));
+                    continue;
+                }
+                win->set_win_flag = 0;
+            }
+            
         } else {
             LOGV("%s:: OVR window %d status should have been HWC_WIN_RESERVED \
                      by now... ", __func__, i);
@@ -651,6 +643,16 @@ static int hwc_set(hwc_composer_device_t *dev,
         } else {
             LOGV("%s:: HEO window %d status should have been HWC_WIN_RESERVED \
                      by now... ", __func__, i);
+        }
+    }
+
+    /* compose the hardware layers here */
+    // Base layer
+    if (need_swap_buffers || !list) {
+        EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
+        if (!sucess) {
+            LOGE("%s: eglSwapBuffers failed", __func__);
+            return HWC_EGL_ERROR;
         }
     }
 
@@ -808,21 +810,14 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
             goto err;
         }
 
-        window_show_var_info(win);
-
         win->var_info.yres_virtual = win->var_info.yres * NUM_OF_WIN_BUF;
 
         win->var_info.bits_per_pixel = 32;/* MAX for RGBA8888 */
         win->transp_offset = 24; /* A[31:24] */
 
-        win->rect_info.x = 0;
-        win->rect_info.y = 0;
-        win->rect_info.w = win->var_info.xres;
-        win->rect_info.h = win->var_info.yres;
-
-        if (window_set_pos(win) < 0) {
-            LOGE("%s::window_set_pos is failed : %s",
-                 __func__, strerror(errno));
+         if (window_reset_pos(win) < 0) {
+            LOGE("%s::window_reset_pos is failed : %s",
+					__func__, strerror(errno));
             status = -EINVAL;
             goto err;
         }
@@ -856,6 +851,8 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
             goto err;
         }
 
+        window_show_var_info(win);
+         
     }
 
     for (unsigned int i = 0; i < dev->num_of_avail_heo; i++) {
