@@ -55,6 +55,7 @@ struct hwc_context_t {
     unsigned int		num_of_avail_heo;
     unsigned int              num_of_fb_layer;
     unsigned int              num_of_hwc_layer;
+    unsigned int              num_of_hwc_layer_prev;
     unsigned int              num_of_fb_layer_prev;
 };
 

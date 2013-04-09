@@ -71,7 +71,8 @@ static int copy_src_content(hwc_layer_t *cur_layer,
     /* switch to next buffer
       * buf_index will be reset to NUM_OF_WIN_BUF when win be open
       */
-    win->buf_index = (win->buf_index + 1) % NUM_OF_WIN_BUF;
+    if (win->set_win_flag == 1)
+    	win->buf_index = (win->buf_index + 1) % NUM_OF_WIN_BUF;
 
     private_handle_t *prev_handle = (private_handle_t *)(cur_layer->handle);
     hwc_rect_t *cur_rect = (hwc_rect_t *)cur_layer->visibleRegionScreen.rects;
@@ -468,6 +469,7 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
         ctx->win_heo[i].status = HWC_WIN_FREE;
     }
 
+    ctx->num_of_hwc_layer_prev = ctx->num_of_hwc_layer;
     ctx->num_of_hwc_layer = 0;
     ctx->num_of_fb_layer = 0;
 
@@ -477,7 +479,8 @@ static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
         int usage =0;
         hwc_layer_t* cur = &list->hwLayers[i];
 
-        if ((overlay_win_cnt + overlay_win_heo_cnt) > 0 && (list->numHwLayers > 1)) {
+        if ((overlay_win_cnt + overlay_win_heo_cnt) > 0 && 
+			(list->numHwLayers > 1 || ctx->num_of_hwc_layer_prev > 0)) {
             compositionType = get_hwc_compos_decision(cur, &usage);
 
             if (compositionType == HWC_FRAMEBUFFER) {
