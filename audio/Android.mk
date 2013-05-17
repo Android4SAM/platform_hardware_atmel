@@ -10,7 +10,7 @@ LOCAL_SRC_FILES := \
     AudioHardwareInterface.cpp \
     audio_hw_hal.cpp
 
-LOCAL_MODULE := libaudiohw_legacy
+LOCAL_MODULE := libaudiohw_atmel
 LOCAL_MODULE_TAGS := optional
 LOCAL_STATIC_LIBRARIES := libmedia_helper
 
@@ -27,8 +27,10 @@ ifeq ($(AUDIO_POLICY_TEST),true)
   LOCAL_CFLAGS += -DAUDIO_POLICY_TEST
 endif
 
+include $(CLEAR_VARS)
+
 LOCAL_STATIC_LIBRARIES := libmedia_helper
-LOCAL_MODULE := libaudiopolicy_legacy
+LOCAL_MODULE := libaudiopolicy_atmel
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_STATIC_LIBRARY)
@@ -48,7 +50,7 @@ LOCAL_STATIC_LIBRARIES := \
     libmedia_helper
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
-    libaudiopolicy_legacy
+    libaudiopolicy_atmel
 
 LOCAL_MODULE := audio_policy.sama5d3-ek
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
@@ -106,7 +108,7 @@ LOCAL_STATIC_LIBRARIES := \
     libmedia_helper
 
 LOCAL_WHOLE_STATIC_LIBRARIES := \
-    libaudiohw_legacy \
+    libaudiohw_atmel \
     alsa.sama5d3-ek 
 
 LOCAL_MODULE := audio.primary.sama5d3-ek
