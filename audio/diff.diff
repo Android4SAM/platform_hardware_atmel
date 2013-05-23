@@ -1,0 +1,64 @@
+diff --git a/audio_hw.c b/audio_hw.c
+index 2d7db30..af98532 100644
+--- a/audio_hw.c
++++ b/audio_hw.c
+@@ -42,13 +42,13 @@
+ #define PCM_DEVICE 0
+ #define PCM_DEVICE_SCO 2
+ 
+-#define OUT_PERIOD_SIZE 512
++#define OUT_PERIOD_SIZE 128
+ #define OUT_SHORT_PERIOD_COUNT 2
+ #define OUT_LONG_PERIOD_COUNT 8
+ #define OUT_SAMPLING_RATE 44100
+ 
+-#define IN_PERIOD_SIZE 1024
+-#define IN_PERIOD_COUNT 4
++#define IN_PERIOD_SIZE 256
++#define IN_PERIOD_COUNT 8
+ #define IN_SAMPLING_RATE 44100
+ 
+ #define SCO_PERIOD_SIZE 256
+@@ -69,17 +69,17 @@ enum {
+ struct pcm_config pcm_config_out = {
+     .channels = 2,
+     .rate = OUT_SAMPLING_RATE,
+-    .period_size = OUT_PERIOD_SIZE,
+-    .period_count = OUT_LONG_PERIOD_COUNT,
++    .period_size = 128,//OUT_PERIOD_SIZE,
++    .period_count = 8,OUT_LONG_PERIOD_COUNT,
+     .format = PCM_FORMAT_S16_LE,
+-    .start_threshold = OUT_PERIOD_SIZE * OUT_SHORT_PERIOD_COUNT,
++    .start_threshold = 0,
+ };
+ 
+ struct pcm_config pcm_config_in = {
+     .channels = 2,
+     .rate = IN_SAMPLING_RATE,
+-    .period_size = IN_PERIOD_SIZE,
+-    .period_count = IN_PERIOD_COUNT,
++    .period_size = 256,//IN_PERIOD_SIZE,
++    .period_count = 8,IN_PERIOD_COUNT,
+     .format = PCM_FORMAT_S16_LE,
+     .start_threshold = 1,
+     .stop_threshold = (IN_PERIOD_SIZE * IN_PERIOD_COUNT),
+@@ -333,9 +333,11 @@ static int start_input_stream(struct stream_in *in)
+      */
+     if (adev->in_device & AUDIO_DEVICE_IN_ALL_SCO) {
+         device = PCM_DEVICE_SCO;
++	ALOGE("PCM_DEVICE_SCO");
+         in->pcm_config = &pcm_config_sco;
+     } else {
+         device = PCM_DEVICE;
++	ALOGE("PCM_DEVICE");
+         in->pcm_config = &pcm_config_in;
+     }
+ 
+@@ -360,6 +362,7 @@ static int start_input_stream(struct stream_in *in)
+     in->pcm = pcm_open(PCM_CARD, device, PCM_IN, in->pcm_config);
+ 
+     if (in->pcm && !pcm_is_ready(in->pcm)) {
++	ALOGE("in->pcm %d, pcm_is_ready(in->pcm) %d", in->pcm, pcm_is_ready(in->pcm));
+         ALOGE("pcm_open(in) failed: %s", pcm_get_error(in->pcm));
+         pcm_close(in->pcm);
+         return -ENOMEM;
