@@ -86,6 +86,6 @@ int window_mmap(struct hwc_win_info_t *win);
 int window_munmap(struct hwc_win_info_t *win);
 int window_pan_display(struct hwc_win_info_t *win);
 int window_get_global_lcd_info(struct fb_var_screeninfo *lcd_info);
-int window_global_lcd_event_control(int enabled);
+int window_global_lcd_event_control(struct hwc_context_t *ctx, int enabled);
 
 #endif /* ANDROID_SAM_HWC_UTILS_H_*/

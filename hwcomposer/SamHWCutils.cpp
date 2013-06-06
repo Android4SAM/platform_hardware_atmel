@@ -274,25 +274,32 @@ fun_err:
     return ret;
 }
 
-int window_global_lcd_event_control(int enabled)
+int window_global_lcd_event_control(struct hwc_context_t *ctx, int enabled)
 {
-    struct hwc_win_info_t win;
     int ret = 0;
     int val = !!enabled;
-    
-    if (window_open(&win, NUM_OF_FB - 1)  < 0) {
-        ALOGE("%s:: Failed to open baselayer device ", __func__);
-        return -1;
+
+    if(ctx->base_lcd_fb <= 0) {
+        struct hwc_win_info_t win;
+        if (window_open(&win, NUM_OF_FB - 1)  < 0) {
+            ALOGE("%s:: Failed to open baselayer device ", __func__);
+            return -1;
+        }
+        ctx->base_lcd_fb = win.fd;
     }
 
-    if (ioctl(win.fd, ATMEL_LCDFB_SET_VSYNC_INT, &val) < 0) {
+    if (ioctl(ctx->base_lcd_fb, ATMEL_LCDFB_SET_VSYNC_INT, &val) < 0) {
         ALOGE("ATMEL_LCDFB_SET_VSYNC_INT failed : %s", strerror(errno));
         ret = -1;
         goto fun_err;
     }
 
+    return 0;
+
 fun_err:
-    if (window_close(&win) < 0)
+    if (close(ctx->base_lcd_fb) < 0)
         ALOGE("%s::baselayer close fail", __func__);
+    else
+        ctx->base_lcd_fb = -1;
     return ret;
 }

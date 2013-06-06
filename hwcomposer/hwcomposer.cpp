@@ -701,9 +701,10 @@ static void hwc_registerProcs(struct hwc_composer_device_1* dev,
 static int hwc_event_control(struct hwc_composer_device_1* dev,
         int dpy, int event, int enabled)
 {
+    struct hwc_context_t *ctx = (struct hwc_context_t *)dev;
     switch (event) {
     case HWC_EVENT_VSYNC:
-        return window_global_lcd_event_control(enabled);
+        return window_global_lcd_event_control(ctx, enabled);
     default:
         return -EINVAL;
     }
@@ -796,6 +797,12 @@ static int hwc_device_close(struct hw_device_t *dev)
                 ret = -1;
             }
         }
+
+        if(ctx->base_lcd_fb > 0) {
+            close(ctx->base_lcd_fb);
+            ctx->base_lcd_fb = -1;
+        }
+        
         free(ctx);
     }
     return 0;

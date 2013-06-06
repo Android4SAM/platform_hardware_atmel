@@ -52,6 +52,7 @@ struct hwc_context_t {
     struct hwc_win_info_t_heo     win_heo[MAX_NUM_OF_HEO];
     struct fb_var_screeninfo  lcd_info;
     const hwc_procs_t       *procs;
+	int						base_lcd_fb;
     int						vsync_fd;
 	pthread_t               vsync_thread;
     unsigned int              num_of_avail_ovl;
