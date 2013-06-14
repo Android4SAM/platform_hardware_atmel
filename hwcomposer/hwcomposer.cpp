@@ -79,6 +79,7 @@ static int copy_src_content(hwc_layer_1_t *cur_layer,
     uint8_t *dst_addr = (uint8_t *)win->vir_addr[win->buf_index];
     uint8_t *src_addr = (uint8_t *)prev_handle->base;
     uint32_t cpy_size = 0;
+    uint32_t offset = (cur_layer->sourceCrop.top * prev_handle->stride + cur_layer->sourceCrop.left) * prev_handle->uiBpp / 8;
     
     if(MAX_NUM_OF_WIN <= win_idx)
         return -1;
@@ -89,7 +90,7 @@ static int copy_src_content(hwc_layer_1_t *cur_layer,
         uint8_t *cur_dst_addr = dst_addr;
         uint8_t *cur_src_addr = &src_addr[((cur_rect->top - cur_layer->displayFrame.top) *
             (cur_layer->displayFrame.right - cur_layer->displayFrame.left) +
-            (cur_rect->left - cur_layer->displayFrame.left)) * (prev_handle->uiBpp / 8)];
+            (cur_rect->left - cur_layer->displayFrame.left)) * (prev_handle->uiBpp / 8)] + offset;
 
         if (w == (cur_layer->displayFrame.right - cur_layer->displayFrame.left)) {
             cpy_size= w * (prev_handle->uiBpp / 8) * h;

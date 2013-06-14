@@ -245,6 +245,7 @@ static int gralloc_alloc(alloc_device_t* dev,
 	private_handle_t* hnd = (private_handle_t*) *pHandle;
 	hnd->iFormat = format;
 	hnd->uiBpp   = bpp * 8;
+    hnd->stride  = stride;
 	*pHandle = hnd;
     *pStride = stride;
     return 0;

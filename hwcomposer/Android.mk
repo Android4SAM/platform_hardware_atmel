@@ -26,6 +26,6 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_SRC_FILES := hwcomposer.cpp SamHWCutils.cpp v4l2_utils.cpp
 LOCAL_MODULE := hwcomposer.$(TARGET_BOOTLOADER_BOARD_NAME)
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
-LOCAL_C_INCLUDES += device/atmel/common/hardware/sama5d3/libgralloc
+LOCAL_C_INCLUDES += hardware/atmel/sama5d3/libgralloc
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
