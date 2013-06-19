@@ -48,6 +48,16 @@
         goto error;
     }
 
+    if (ioctl(win->fd, FBIOGET_FSCREENINFO, &win->fix_info) < 0) {
+        ALOGE("FBIOGET_FSCREENINFO failed : %s", strerror(errno));
+        goto error;
+    }
+    if (strcmp(win->fix_info.id, "atmel_hlcdfb_ovl")
+            && strcmp(win->fix_info.id, "atmel_hlcdfb_bas")) {
+        ALOGE("%s is not a atmel lcd fb device \n", win->fix_info.id);
+        return -1;
+    }
+
     win->buf_index = NUM_OF_WIN_BUF -1;
 
     ALOGD("%s, open fd:%d, id:%d", __func__, win->fd, id);

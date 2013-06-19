@@ -72,7 +72,8 @@ static int copy_src_content(hwc_layer_1_t *cur_layer,
     /* switch to next buffer
       * buf_index will be reset to NUM_OF_WIN_BUF when win be open
       */
-    win->buf_index = (win->buf_index + 1) % NUM_OF_WIN_BUF;
+    if (win->set_win_flag == 1)
+    	win->buf_index = (win->buf_index + 1) % NUM_OF_WIN_BUF;
     
     private_handle_t *prev_handle = (private_handle_t *)(cur_layer->handle);
     hwc_rect_t *cur_rect = (hwc_rect_t *)cur_layer->visibleRegionScreen.rects;
@@ -84,7 +85,11 @@ static int copy_src_content(hwc_layer_1_t *cur_layer,
     if(MAX_NUM_OF_WIN <= win_idx)
         return -1;
 
-    for (int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
+    for (unsigned int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
+        cur_rect->right = SAM_MIN(cur_rect->right, win->lcd_info.xres);
+        cur_rect->left = SAM_MAX(cur_rect->left, 0);
+        cur_rect->bottom = SAM_MIN(cur_rect->bottom, win->lcd_info.yres);
+        cur_rect->top = SAM_MAX(cur_rect->top, 0);
         int w = cur_rect->right - cur_rect->left;
         int h = cur_rect->bottom - cur_rect->top;
         uint8_t *cur_dst_addr = dst_addr;
@@ -144,7 +149,7 @@ static int copy_heo_src_content(hwc_layer_1_t *cur_layer,
 			return 0;
 	}
 
-    for (int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
+    for (unsigned int i = 0; i < cur_layer->visibleRegionScreen.numRects; i++) {
         uint8_t *cur_dst_addr = dst_addr;
         uint8_t *cur_src_addr = src_addr;
 
@@ -379,7 +384,7 @@ static int assign_heo_overlay_window(struct hwc_context_t *ctx,
     }
 
     if (!win->zero_copy) {
-        for (int i = 0; i < win->num_of_buffer; i++) {
+        for (unsigned int i = 0; i < win->num_of_buffer; i++) {
             v4l2_overlay_unmap_buf(win->buffers[i], win->buffers_len[i]);
         }
     }
@@ -421,7 +426,7 @@ static int assign_heo_overlay_window(struct hwc_context_t *ctx,
     }
 
     if(!win->zero_copy) {
-        for (int j = 0; j < win->num_of_buffer; j++) {
+        for (unsigned int j = 0; j < win->num_of_buffer; j++) {
             ret = v4l2_overlay_map_buf(win->fd, j, &win->buffers[j], &win->buffers_len[j]);
             if(ret) {
                 ALOGE("%s: Failed mapping buffers", __func__);
@@ -464,18 +469,19 @@ static int hwc_prepare(struct hwc_composer_device_1 *dev, size_t numDisplays,
     int ret;
 
     //if geometry is not changed, there is no need to do any work here
-    if( !list || (!(list->flags & HWC_GEOMETRY_CHANGED)))
+    if (!list || (!(list->flags & HWC_GEOMETRY_CHANGED)))
         return 0;
 
     //all the windows are free here....
-    for (int i = 0; i < ctx->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_ovl; i++) {
         ctx->win[i].status = HWC_WIN_FREE;
     }
 
-    for (int i = 0; i < ctx->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < ctx->num_of_avail_heo; i++) {
         ctx->win_heo[i].status = HWC_WIN_FREE;
     }
     
+    ctx->num_of_hwc_layer_prev = ctx->num_of_hwc_layer;
     ctx->num_of_hwc_layer = 0;
     ctx->num_of_fb_layer = 0;
 
@@ -485,7 +491,8 @@ static int hwc_prepare(struct hwc_composer_device_1 *dev, size_t numDisplays,
         int usage =0;
         hwc_layer_1_t* cur = &list->hwLayers[i];
 
-        if ( (overlay_win_cnt + overlay_win_heo_cnt) > 0 && (list->numHwLayers > 1)) {
+        if ((overlay_win_cnt + overlay_win_heo_cnt) > 0 && 
+			(list->numHwLayers > 1 || ctx->num_of_hwc_layer_prev > 0)) {
             compositionType = get_hwc_compos_decision(cur, &usage);
 
             if (compositionType == HWC_FRAMEBUFFER) {
@@ -583,13 +590,13 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
 
     if (!list) {
         /* turn off the all windows */
-        for (int i = 0; i < ctx->num_of_avail_ovl; i++) {
+        for (unsigned int i = 0; i < ctx->num_of_avail_ovl; i++) {
             reset_win_rect_info(&ctx->win[i]);
             ctx->win[i].status = HWC_WIN_FREE;
         }
 
         /* turn off the all heo layers */
-        for (int i = 0; i < ctx->num_of_avail_heo; i++) {
+        for (unsigned int i = 0; i < ctx->num_of_avail_heo; i++) {
             reset_heo_win_rect_info(&ctx->win_heo[i]);
             ctx->win_heo[i].status = HWC_WIN_FREE;
         }        
@@ -597,30 +604,11 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         return 0;
     }
 
-    /* compose the hardware layers here */
-    // Base layer
-    if (need_swap_buffers || !list) {
-        EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
-        if (!sucess) {
-            ALOGE("%s: eglSwapBuffers failed", __func__);
-            return HWC_EGL_ERROR;
-        }
-    }
-
     /* copy the content of hardware layers here */
     for (uint32_t i = 0; i < ctx->num_of_avail_ovl; i++) {
         win = &ctx->win[i];
         if (win->status == HWC_WIN_RESERVED) {
             cur = &list->hwLayers[win->layer_index];
-            if (win->set_win_flag == 1) {
-            /* set the window position with new conf..., don't allow failed */
-                if (window_set_pos(win) < 0) {
-                    ALOGE("Emergency error (%s) ::window_set_pos is failed : %s", __func__,
-                                strerror(errno));
-                    continue;
-                }
-                win->set_win_flag = 0;
-            } 
 
             if (cur->compositionType == HWC_OVERLAY) {
                 if(copy_src_content(cur, win,i) < 0){
@@ -634,6 +622,17 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
                 win->status = HWC_WIN_RELEASE;
                 continue;
             }
+
+            if (win->set_win_flag == 1) {
+            /* set the window position with new conf..., don't allow failed */
+                if (window_set_pos(win) < 0) {
+                    ALOGE("Emergency error (%s) ::window_set_pos is failed : %s", __func__,
+                                strerror(errno));
+                    continue;
+                }
+                win->set_win_flag = 0;
+            }
+            
         } else {
              ALOGV("%s:: OVR window %d status should have been HWC_WIN_RESERVED \
                      by now... ", __func__, i);
@@ -669,6 +668,16 @@ static int hwc_set(struct hwc_composer_device_1 *dev,
         } else {
             ALOGV("%s:: HEO window %d status should have been HWC_WIN_RESERVED \
                      by now... ", __func__, i);
+        }
+    }
+
+    /* compose the hardware layers here */
+    // Base layer
+    if (need_swap_buffers || !list) {
+        EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
+        if (!sucess) {
+            ALOGE("%s: eglSwapBuffers failed", __func__);
+            return HWC_EGL_ERROR;
         }
     }
 
@@ -785,14 +794,14 @@ static int hwc_device_close(struct hw_device_t *dev)
     int i;
 
     if (ctx) {
-        for (i = 0; i < ctx->num_of_avail_ovl; i++) {
+        for (unsigned i = 0; i < ctx->num_of_avail_ovl; i++) {
             if (window_close(&ctx->win[i]) < 0) {
                 ALOGE("%s::window_close() fail", __func__);
                 ret = -1;
             }
         }
 
-        for (i=0; i < ctx->num_of_avail_heo; i++) {
+        for (unsigned i=0; i < ctx->num_of_avail_heo; i++) {
             if (v4l2_overlay_close(&ctx->win_heo[i]) < 0) {
                 ALOGE("%s::v4l2_overlay_close() fail", __func__);
                 ret = -1;
@@ -815,7 +824,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
     int status = 0;
-    int NUM_OF_WIN = 0;
+    int NUM_OF_WIN = 0, NUM_OF_HEO_WIN = 0;
     DIR*    dir;
     struct dirent* de;    
     struct hwc_win_info_t *win;
@@ -864,7 +873,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     }
 
     /* open Ovrlayer here */
-    for (int i = 0; i < dev->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_ovl; i++) {
         if (window_open(&(dev->win[i]), i) < 0) {
             ALOGE("%s:: Failed to open window %d device ", __func__, i);
             dev->num_of_avail_ovl--;
@@ -879,12 +888,24 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     while ((de = readdir(dir))) {
         if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..") || !strcmp(de->d_name, "fb0"))
             continue;
-        if (v4l2_overlay_open(&(dev->win_heo[dev->num_of_avail_heo]), de->d_name) < 0)
+        if (v4l2_overlay_open(&(dev->win_heo[NUM_OF_HEO_WIN]), de->d_name) < 0)
             continue;
-        dev->num_of_avail_heo++;
+        NUM_OF_HEO_WIN++;
         ALOGD("We find %d'th heo layer: %s", dev->num_of_avail_heo, de->d_name);
     }
     closedir(dir);
+
+    if (property_get("ro.hwc.ovl_heo_num", value, "1") > 0) {
+        dev->num_of_avail_heo = SAM_MIN(NUM_OF_HEO_WIN, atoi(value));
+    } else {
+        dev->num_of_avail_heo = NUM_OF_HEO_WIN;
+    }
+
+    for (unsigned int i = 0; i < NUM_OF_HEO_WIN - dev->num_of_avail_heo; i++) {
+        if (v4l2_overlay_close(&(dev->win_heo[dev->num_of_avail_heo + i])) == 0) {
+            ALOGV("%s:: Closing heo layer %d device ", __func__, i);
+        }
+    }
 
     /* get default window config */
     if (window_get_global_lcd_info(&dev->lcd_info) < 0) {
@@ -898,7 +919,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
     dev->lcd_info.yres_virtual = dev->lcd_info.yres * 2;
 
     /* initialize the window context */
-    for (int i = 0; i < dev->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_ovl; i++) {
         win = &dev->win[i];
         memcpy(&win->lcd_info, &dev->lcd_info, sizeof(struct fb_var_screeninfo));
         
@@ -909,19 +930,12 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
             goto err;
         }
 
-        window_show_var_info(win);
-
         win->var_info.yres_virtual = win->var_info.yres * NUM_OF_WIN_BUF;
         
         win->var_info.bits_per_pixel = 32;/* MAX for RGBA8888 */
         win->transp_offset = 24; /* A[31:24] */
 
-        win->rect_info.x = 0;
-        win->rect_info.y = 0;
-        win->rect_info.w = win->var_info.xres;
-        win->rect_info.h = win->var_info.yres;
-
-         if (window_set_pos(win) < 0) {
+         if (window_reset_pos(win) < 0) {
             ALOGE("%s::window_set_pos is failed : %s",
 					__func__, strerror(errno));
             status = -EINVAL;
@@ -956,10 +970,12 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
             status = -EINVAL;
             goto err;
         }
+
+        window_show_var_info(win);
          
     }
 
-    for (int i = 0; i < dev->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_heo; i++) {
         win_heo = &dev->win_heo[i];
         memcpy(&win_heo->lcd_info, &dev->lcd_info, sizeof(struct fb_var_screeninfo));
     }
@@ -985,12 +1001,12 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
 err_vsync:
     close(dev->vsync_fd);
 err:
-    for (int i = 0; i < dev->num_of_avail_ovl; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_ovl; i++) {
         if (window_close(&dev->win[i]) < 0)
             ALOGE("%s::window_close() fail", __func__);
     }
     
-    for (int i = 0; i < dev->num_of_avail_heo; i++) {
+    for (unsigned int i = 0; i < dev->num_of_avail_heo; i++) {
         if (v4l2_overlay_close(&dev->win_heo[i]) < 0)
             ALOGE("%s::window_close() fail", __func__);
     }

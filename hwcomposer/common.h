@@ -14,7 +14,7 @@
 
 #define NUM_OF_FB             (3)
 #define MAX_NUM_OF_WIN (NUM_OF_FB - 1) //Plus 1, it is fb0
-#define NUM_OF_WIN_BUF      (1)
+#define NUM_OF_WIN_BUF      (2)
 
 #define MAX_NUM_OF_HEO (1)
 #define NUM_OF_HEO_BUF (3)
@@ -59,6 +59,7 @@ struct hwc_context_t {
     unsigned int		num_of_avail_heo;
     unsigned int              num_of_fb_layer;
     unsigned int              num_of_hwc_layer;
+    unsigned int              num_of_hwc_layer_prev;
     unsigned int              num_of_fb_layer_prev;
 };
 
