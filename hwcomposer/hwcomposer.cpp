@@ -97,7 +97,7 @@ static int copy_src_content(hwc_layer_1_t *cur_layer,
             (cur_layer->displayFrame.right - cur_layer->displayFrame.left) +
             (cur_rect->left - cur_layer->displayFrame.left)) * (prev_handle->uiBpp / 8)] + offset;
 
-        if (w == (cur_layer->displayFrame.right - cur_layer->displayFrame.left)) {
+        if (w == prev_handle->stride) {
             cpy_size= w * (prev_handle->uiBpp / 8) * h;
             h = 1;
         } else {
@@ -108,7 +108,7 @@ static int copy_src_content(hwc_layer_1_t *cur_layer,
             memcpy(cur_dst_addr, cur_src_addr, cpy_size);
             //cur_dst_addr = &cur_dst_addr[win->fix_info.line_length];
             cur_dst_addr = &cur_dst_addr[cpy_size];
-            cur_src_addr = &cur_src_addr[(cur_layer->displayFrame.right - cur_layer->displayFrame.left) * (prev_handle->uiBpp / 8)];
+            cur_src_addr = &cur_src_addr[prev_handle->stride * (prev_handle->uiBpp / 8)];
         }
 
         cur_rect++;
@@ -290,8 +290,8 @@ static int assign_overlay_window(struct hwc_context_t *ctx,
     win->var_info.bits_per_pixel = prev_handle->uiBpp;
     rect.x = SAM_MAX(visible_rect->left, 0);
     rect.y = SAM_MAX(visible_rect->top, 0);
-    rect.w = SAM_MIN(visible_rect->right - rect.x, win->lcd_info.xres - rect.x);
-    rect.h = SAM_MIN(visible_rect->bottom - rect.y, win->lcd_info.yres - rect.y);
+    rect.w = SAM_MIN(visible_rect->right - rect.x, win->lcd_info.xres);
+    rect.h = SAM_MIN(visible_rect->bottom - rect.y, win->lcd_info.yres);
     win->set_win_flag = 0;
 
     if((rect.x != win->rect_info.x) || (rect.y != win->rect_info.y) ||
