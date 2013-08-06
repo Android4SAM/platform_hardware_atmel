@@ -1502,7 +1502,7 @@ void glReadPixels(
         GLenum format, GLenum type, GLvoid *pixels)
 {
     ogles_context_t* c = ogles_context_t::get();
-    if ((format != GL_RGBA) && (format != GL_RGB)) {
+    if ((format != GL_RGBA) && (format != GL_BGRA) && (format != GL_RGB)) {
         ogles_error(c, GL_INVALID_ENUM);
         return;
     }
@@ -1522,6 +1522,8 @@ void glReadPixels(
     int32_t formatIdx = GGL_PIXEL_FORMAT_NONE;
     if ((format == GL_RGBA) && (type == GL_UNSIGNED_BYTE)) {
         formatIdx = GGL_PIXEL_FORMAT_RGBA_8888;
+    } else if ((format == GL_BGRA) && (type == GL_UNSIGNED_BYTE)) {
+        formatIdx = GGL_PIXEL_FORMAT_BGRA_8888;
     } else if ((format == GL_RGB) && (type == GL_UNSIGNED_SHORT_5_6_5)) {
         formatIdx = GGL_PIXEL_FORMAT_RGB_565;
     } else {
@@ -1545,7 +1547,10 @@ void glReadPixels(
     userSurface.version = sizeof(userSurface);
     userSurface.width  = width;
     userSurface.height = height;
-    userSurface.stride = -stride; // bottom row is transfered first
+    if ((format == GL_BGRA) && (type == GL_UNSIGNED_BYTE)) 
+        userSurface.stride = stride;
+    else
+        userSurface.stride = -stride; // bottom row is transfered first
     userSurface.format = formatIdx;
     userSurface.compressedFormat = 0;
     userSurface.data = (GLubyte*)pixels;
