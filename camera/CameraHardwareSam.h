@@ -32,6 +32,9 @@
 #define BACK_CAMERA_MACRO_FOCUS_DISTANCES_STR      "0.10,0.20,Infinity"
 #define BACK_CAMERA_INFINITY_FOCUS_DISTANCES_STR   "0.10,1.20,Infinity"
 #define FRONT_CAMERA_FOCUS_DISTANCES_STR           "0.20,0.25,Infinity"
+
+#define  NUM_OF_RECORD_BUF                         (8)
+
 namespace android {
 
 struct addrs {
@@ -202,7 +205,7 @@ private:
 
     camera_memory_t     *mPreviewHeap;
     camera_memory_t     *mRawHeap;
-    camera_memory_t     *mRecordHeap;
+    camera_memory_t     *mRecordHeap[NUM_OF_RECORD_BUF];
 
     V4L2Camera           *mV4L2Camera;
     const __u8  *mCameraSensorName;
@@ -220,6 +223,8 @@ private:
     int32_t     mMsgEnabled;
 
     bool        mRecordRunning;
+    int                 m_numOfAvailableRecordBuf;
+    int                 m_cntRecordBuf;
     mutable Mutex       mRecordLock;
     int         mPostViewWidth;
     int         mPostViewHeight;

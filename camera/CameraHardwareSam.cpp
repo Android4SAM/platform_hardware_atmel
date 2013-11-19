@@ -17,6 +17,7 @@
 #include <utils/Log.h>
 #include "V4L2Camera.h"
 #include "CameraHardwareSam.h"
+#include "converter.h"
 #include <camera/Camera.h>
 #include <utils/threads.h>
 #include <fcntl.h>
@@ -53,7 +54,8 @@ CameraHardwareSam::CameraHardwareSam(int cameraId, camera_device_t *dev)
       mDataCbTimestamp(0),
       mCallbackCookie(0),
       mMsgEnabled(0),
-      mRecordRunning(false)
+      mRecordRunning(false),
+      m_numOfAvailableRecordBuf(0)
 {
     ALOGV("%s :", __func__);
     int ret = 0;
@@ -62,7 +64,10 @@ CameraHardwareSam::CameraHardwareSam(int cameraId, camera_device_t *dev)
     mV4L2Camera = V4L2Camera::createInstance();
     mRawHeap = NULL;
     mPreviewHeap = NULL;
-    mRecordHeap = NULL;
+    for (int i = 0; i < NUM_OF_RECORD_BUF; i++)
+        mRecordHeap[i] = NULL;
+
+    m_cntRecordBuf = 0;
 
     if (!mGrallocHal) {
         ret = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, (const hw_module_t **)&mGrallocHal);
@@ -156,6 +161,7 @@ void CameraHardwareSam::initDefaultParameters(int cameraId)
     p.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, "39.4");
 
     p.setPreviewFrameRate(20);
+    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, "5,10,15,20,30");
 
     String8 parameterString;
     parameterString = CameraParameters::FOCUS_MODE_FIXED;
@@ -319,6 +325,25 @@ callbacks:
         mDataCb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap, index, NULL, mCallbackCookie);
     }
 
+    char *preview_frame = ((char *)mPreviewHeap->data) + offset;
+
+    if (mRecordRunning && (m_numOfAvailableRecordBuf > 0) && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
+        Mutex::Autolock lock(mRecordLock);
+
+        yuyv422_to_yuv420((unsigned char*) preview_frame, (unsigned char*) mRecordHeap[m_cntRecordBuf]->data, width, height);
+
+        timestamp = systemTime(SYSTEM_TIME_MONOTONIC);
+        mDataCbTimestamp(timestamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap[m_cntRecordBuf], 0, mCallbackCookie);
+
+        m_numOfAvailableRecordBuf--;
+        if (m_numOfAvailableRecordBuf < 0)
+            m_numOfAvailableRecordBuf = 0;
+
+        m_cntRecordBuf++;
+        if (m_cntRecordBuf == NUM_OF_RECORD_BUF)
+            m_cntRecordBuf = 0;
+    }
+
     mV4L2Camera->freePreviewframe(index);
     return NO_ERROR;
 }
@@ -382,9 +407,11 @@ status_t CameraHardwareSam::startPreviewInternal()
 
     setSkipFrame(INITIAL_SKIP_FRAME);
 
-    int width, height, frame_size;
+    int width, height, frame_size, page_size, aligned_buffer_size;
 
     mV4L2Camera->getPreviewSize(&width, &height, &frame_size);
+    page_size = getpagesize();
+    aligned_buffer_size = (frame_size + (page_size - 1)) & (~(page_size - 1));
 
     if (mPreviewHeap) {
         mPreviewHeap->release(mPreviewHeap);
@@ -392,7 +419,7 @@ status_t CameraHardwareSam::startPreviewInternal()
     }
 
     mPreviewHeap = mGetMemoryCb((int)mV4L2Camera->getCameraFd(),
-                                frame_size,
+                                aligned_buffer_size,
                                 kBufferCount,
                                 0); // no cookie
 
@@ -505,8 +532,8 @@ status_t CameraHardwareSam::storeMetaDataInBuffers(bool enable)
     // FIXME:
     // metadata buffer mode can be turned on or off.
     // Samsung needs to fix this.
-    if (!enable) {
-        ALOGE("Non-metadata buffer mode is not supported!");
+    if (enable) {
+        ALOGE("Metadata buffer mode is not supported!");
         return INVALID_OPERATION;
     }
     return OK;
@@ -592,12 +619,55 @@ status_t CameraHardwareSam::startRecording()
 {
     ALOGD("%s :", __func__);
 
+    int width, height, frame_size;
+
+    Mutex::Autolock lock(mRecordLock);
+
+    mV4L2Camera->getPreviewSize(&width, &height, &frame_size);
+
+    for (int i = 0; i < NUM_OF_RECORD_BUF; i++) {
+        if (mRecordHeap[i] != NULL) {
+            mRecordHeap[i]->release(mRecordHeap[i]);
+            mRecordHeap[i] = NULL;
+        }
+
+        mRecordHeap[i] = mGetMemoryCb(-1,  (width * height * 3) >> 1, 1, NULL);
+    }
+
+    if (mRecordRunning == false) {
+        if (mV4L2Camera->startRecord() < 0) {
+            ALOGE("ERR(%s):Fail on mV4L2Camera->startRecord()", __func__);
+            return UNKNOWN_ERROR;
+        }
+
+        m_numOfAvailableRecordBuf = NUM_OF_RECORD_BUF;
+        mRecordRunning = true;
+    }
+
     return NO_ERROR;
 }
 
 void CameraHardwareSam::stopRecording()
 {
     ALOGD("%s :", __func__);
+
+    Mutex::Autolock lock(mRecordLock);
+
+    for (int i = 0; i < NUM_OF_RECORD_BUF; i++) {
+        if (mRecordHeap[i] != NULL) {
+            mRecordHeap[i]->release(mRecordHeap[i]);
+            mRecordHeap[i] = NULL;
+        }
+    }
+
+    if (mRecordRunning == true) {
+        if (mV4L2Camera->stopRecord() < 0) {
+            ALOGE("ERR(%s):Fail on mV4L2Camera->stopRecord()", __func__);
+            return;
+        }
+        mRecordRunning = false;
+    }
+
 }
 
 bool CameraHardwareSam::recordingEnabled()
@@ -610,7 +680,26 @@ bool CameraHardwareSam::recordingEnabled()
 void CameraHardwareSam::releaseRecordingFrame(const void *opaque)
 {
     struct addrs *addrs = (struct addrs *)opaque;
-    mV4L2Camera->releaseRecordFrame(addrs->buf_index);
+    int i, index;
+    bool find = false;
+
+    ALOGV("%s :(addr=%p)", __func__, opaque);
+
+    for (i = 0; i < NUM_OF_RECORD_BUF; i++) {
+        if ((char *)mRecordHeap[i]->data == (char *)opaque) {
+            find = true;
+            break;
+        }
+    }
+
+    if (find == true) {
+        index = i;
+        m_numOfAvailableRecordBuf++;
+        if (NUM_OF_RECORD_BUF <= m_numOfAvailableRecordBuf)
+            m_numOfAvailableRecordBuf = NUM_OF_RECORD_BUF;
+    } else {
+        ALOGI("DEBUG(%s):no matched index(%p)", __func__, (char *)opaque);
+    }
 }
 
 int CameraHardwareSam::pictureThread()
