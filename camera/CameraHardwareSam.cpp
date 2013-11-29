@@ -548,7 +548,7 @@ status_t CameraHardwareSam::setPreviewWindow(preview_stream_ops *w)
     ALOGD("%s: mPreviewWindow %p", __func__, mPreviewWindow);
 
     if (!w) {
-        ALOGE("preview window is NULL!");
+        ALOGV("preview window is NULL!");
         return OK;
     }
 

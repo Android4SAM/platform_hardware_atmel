@@ -246,7 +246,7 @@ static int get_hwc_compos_decision(hwc_layer_1_t* cur, int *usage)
                 ||
                 ((cur->sourceCrop.bottom - cur->sourceCrop.top) != (cur->displayFrame.bottom - cur->displayFrame.top))){
                 compositionType = HWC_FRAMEBUFFER;
-                ALOGE("%s :: We need to scaler, didn't support now!", __func__);
+                ALOGV("%s :: We need to scaler, didn't support now!", __func__);
             } else {
                 compositionType = HWC_OVERLAY;
                 *usage = USE_OVR;

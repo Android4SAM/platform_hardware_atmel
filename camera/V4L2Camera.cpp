@@ -503,7 +503,7 @@ int V4L2Camera::initCamera(int index)
             ALOGE("ERR(%s):Cannot open %s (error : %s)\n", __func__, CAMERA_DEV_NAME, strerror(errno));
             return -1;
         }
-        ALOGE("initCamera: m_cam_fd(%d)", m_cam_fd);
+        ALOGD("initCamera: m_cam_fd(%d)", m_cam_fd);
         ret = isi_v4l2_querycap(m_cam_fd);
         CHECK(ret);
         if (!isi_v4l2_enuminput(m_cam_fd, index))
