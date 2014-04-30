@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-modules := libagl gralloc
+modules := libagl gralloc hwcomposer
 
 include $(call all-named-subdir-makefiles,$(modules))
