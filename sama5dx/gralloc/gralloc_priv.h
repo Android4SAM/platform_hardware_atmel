@@ -78,8 +78,14 @@ struct private_handle_t {
     int     base;
     int     pid;
 
+    // ADD: By embest, we want the buffer message for hwcomposer
+    int     iFormat;
+    //Note: bits per pixel (32 for RGBA8888)
+    int    uiBpp;
+    int    stride;
+
 #ifdef __cplusplus
-    static const int sNumInts = 6;
+    static const int sNumInts = 9;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
