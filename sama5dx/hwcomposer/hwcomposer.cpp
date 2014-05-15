@@ -984,7 +984,7 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         memcpy(&win_heo->lcd_info, &dev->lcd_info, sizeof(struct fb_var_screeninfo));
     }
 
-    dev->vsync_fd = open("/sys/devices/ahb.0/apb.1/lcd_bus.2/atmel_hlcdfb_base/vsync", O_RDONLY);
+    dev->vsync_fd = open("/sys/class/graphics/fb0/device/vsync", O_RDONLY);
     if (dev->vsync_fd < 0) {
         ALOGE("failed to open vsync attribute");
         status = dev->vsync_fd;
