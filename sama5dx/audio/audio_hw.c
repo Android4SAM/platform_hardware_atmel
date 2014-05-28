@@ -69,23 +69,24 @@ enum {
 
 struct pcm_config pcm_config_out = {
     .channels = 2,   
-    .avail_min = 128,    
+    .avail_min = 2048,    
     .rate = OUT_SAMPLING_RATE,    
-    .period_size = 2048,//OUT_PERIOD_SIZE,    
-    .period_count = 8,//OUT_LONG_PERIOD_COUNT,    
+    .period_size = 2048,
+    .period_count = 8,
     .format = PCM_FORMAT_S16_LE,    
-    .start_threshold = 1023,//OUT_PERIOD_SIZE * OUT_SHORT_PERIOD_COUNT,
+    .start_threshold = 2048 * 8,
+    .stop_threshold = 2048 * 8,
 };
 
 struct pcm_config pcm_config_in = {
     .channels = 2,
     .rate = IN_SAMPLING_RATE,
     .avail_min = 2048,
-    .period_size = 2048,//IN_PERIOD_SIZE,
-    .period_count = 8,//IN_PERIOD_COUNT,
+    .period_size = 2048,
+    .period_count = 8,
     .format = PCM_FORMAT_S16_LE,
     .start_threshold = 1,
-    .stop_threshold = 2048 * 8,//(IN_PERIOD_SIZE * IN_PERIOD_COUNT),
+    .stop_threshold = 2048 * 8,
 };
 
 struct pcm_config pcm_config_sco = {
