@@ -302,6 +302,10 @@ static int start_output_stream(struct stream_out *out)
      * create a resampler.
      */
     if (out_get_sample_rate(&out->stream.common) != out->pcm_config->rate) {
+        if (out->resampler) {
+            release_resampler(out->resampler);
+            out->resampler = NULL;
+        }
         ret = create_resampler(out_get_sample_rate(&out->stream.common),
                                out->pcm_config->rate,
                                out->pcm_config->channels,
@@ -372,6 +376,11 @@ static int start_input_stream(struct stream_in *in)
     if (in_get_sample_rate(&in->stream.common) != in->pcm_config->rate) {
         in->buf_provider.get_next_buffer = get_next_buffer;
         in->buf_provider.release_buffer = release_buffer;
+
+        if (in->resampler) {
+            release_resampler(in->resampler);
+            in->resampler = NULL;
+        }
 
         ret = create_resampler(in->pcm_config->rate,
                                in_get_sample_rate(&in->stream.common),
