@@ -28,11 +28,17 @@
 #include <cutils/native_handle.h>
 
 #include <linux/fb.h>
+#include <linux/ioctl.h>
 
 /*****************************************************************************/
 
 struct private_module_t;
+
+#ifdef __cplusplus
 struct private_handle_t;
+#else
+typedef struct private_handle_t private_handle_t;
+#endif
 
 struct private_module_t {
     gralloc_module_t base;
@@ -53,6 +59,16 @@ struct private_module_t {
     float fps;
 };
 
+typedef struct {
+        unsigned busAddress;
+        unsigned size;
+} MemallocParams;
+
+#define MEMALLOC_IOC_MAGIC  'k'
+
+#define MEMALLOC_IOCXGETBUFFER    _IOWR(MEMALLOC_IOC_MAGIC, 1, MemallocParams*)
+#define MEMALLOC_IOCSFREEBUFFER   _IOW(MEMALLOC_IOC_MAGIC, 2, unsigned long*)
+
 /*****************************************************************************/
 
 #ifdef __cplusplus
@@ -63,7 +79,8 @@ struct private_handle_t {
 #endif
 
     enum {
-        PRIV_FLAGS_FRAMEBUFFER = 0x00000001
+        PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
+        PRIV_FLAGS_DMABUFFER = 0x00000002,
     };
 
     // file-descriptors
@@ -84,8 +101,11 @@ struct private_handle_t {
     int    uiBpp;
     int    stride;
 
+    // ADD: By embest, for alloc buffer from /dev/memalloc
+    unsigned busAddress;
+
 #ifdef __cplusplus
-    static const int sNumInts = 9;
+    static const int sNumInts = 10;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 

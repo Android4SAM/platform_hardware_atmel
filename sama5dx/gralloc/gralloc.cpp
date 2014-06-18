@@ -194,6 +194,47 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
     return err;
 }
 
+static int gralloc_alloc_dma_coherent_buffer(alloc_device_t* dev,
+        size_t size, int usage, buffer_handle_t* pHandle)
+{
+    int err = 0;
+    int fd = -1;
+    
+    size = roundUpToPageSize(size);
+
+    fd = open("/dev/memalloc", O_RDWR | O_SYNC);
+    if (fd < 0) {
+        ALOGE("couldn't create dma coherent buffer (%s)", strerror(-errno));
+        err = -errno;
+    }
+
+    if (err == 0) {
+        private_handle_t* hnd = new private_handle_t(fd, size, private_handle_t::PRIV_FLAGS_DMABUFFER);
+        MemallocParams params;
+        memset(&params, 0, sizeof(MemallocParams));
+        params.size = hnd->size;
+        // get linear memory buffer
+        ioctl(hnd->fd, MEMALLOC_IOCXGETBUFFER, &params);
+
+        if (params.busAddress == 0) {
+            ALOGE("alloc->fd_memalloc failed (size=%d) - INSUFFICIENT_RESOURCES", params.size);
+            return -ENOMEM;
+        }
+
+        hnd->busAddress = params.busAddress;
+        gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
+                dev->common.module);
+        err = mapBuffer(module, hnd);
+        if (err == 0) {
+            *pHandle = hnd;
+        }
+    }
+    
+    ALOGE_IF(err, "gralloc dma coherent buffer failed err=%s", strerror(-err));
+
+    return err;
+}
+
 /*****************************************************************************/
 
 static int gralloc_alloc(alloc_device_t* dev,
@@ -232,6 +273,8 @@ static int gralloc_alloc(alloc_device_t* dev,
     int err;
     if (usage & GRALLOC_USAGE_HW_FB) {
         err = gralloc_alloc_framebuffer(dev, size, usage, pHandle);
+    } else if (usage & GRALLOC_USAGE_PRIVATE_0) {
+        err = gralloc_alloc_dma_coherent_buffer(dev, size, usage, pHandle);
     } else {
         err = gralloc_alloc_buffer(dev, size, usage, pHandle);
     }

@@ -48,7 +48,15 @@ static int gralloc_map(gralloc_module_t const* module,
         void** vaddr)
 {
     private_handle_t* hnd = (private_handle_t*)handle;
-    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
+    if (hnd->flags & private_handle_t::PRIV_FLAGS_DMABUFFER) {
+        void* mappedAddress = mmap(0, hnd->size, 
+                PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd, hnd->busAddress);
+        if (mappedAddress == MAP_FAILED) {
+            ALOGE("Could not mmap from memalloc %s", strerror(errno));
+            return -errno;
+        }
+        hnd->base = intptr_t(mappedAddress) + hnd->offset;
+    } else if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
         size_t size = hnd->size;
         void* mappedAddress = mmap(0, size,
                 PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd, 0);
@@ -68,7 +76,21 @@ static int gralloc_unmap(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
     private_handle_t* hnd = (private_handle_t*)handle;
-    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
+    if (hnd->flags & private_handle_t::PRIV_FLAGS_DMABUFFER) {
+        void* base = (void*)hnd->base;
+        size_t size = hnd->size;
+        
+        if (hnd->busAddress)
+            ioctl(hnd->fd, MEMALLOC_IOCSFREEBUFFER, &hnd->busAddress);
+
+        if (base != MAP_FAILED) {
+            if (munmap(base, size) < 0) {
+                ALOGE("Could not unmap dma coherent buffer %s", strerror(errno));
+            }
+        }
+
+        hnd->busAddress = 0;
+    } else if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
         void* base = (void*)hnd->base;
         size_t size = hnd->size;
         //ALOGD("unmapping from %p, size=%d", base, size);
