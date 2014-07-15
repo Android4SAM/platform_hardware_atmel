@@ -629,6 +629,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     int kernel_frames;
     bool sco_on;
 
+    if (out->pcm && !pcm_is_ready(out->pcm)) {
+        /* XXX: fake timing for audio output */
+        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+           out_get_sample_rate(&stream->common));
+        return bytes;
+    }
+
     /*
      * acquiring hw device mutex systematically is useful if a low
      * priority thread is waiting on the output stream mutex - e.g.
@@ -797,6 +804,10 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 {
     struct stream_out *out = (struct stream_out *)stream;
     int ret = -1;
+
+    if (out->pcm || !pcm_is_ready(out->pcm)) {
+        return -ENOSYS;
+    }
 
     pthread_mutex_lock(&out->lock);
 
