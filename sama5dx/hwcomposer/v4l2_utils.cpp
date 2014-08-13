@@ -25,7 +25,7 @@
 #include <linux/videodev.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include "common.h"
+#include <system/graphics.h>
 
 #define LOG_FUNCTION_NAME    ALOGV("%s: %s",  __FILE__, __func__);
 //#define ALOG_FUNCTION_NAME    ALOGD("%s", __func__);
@@ -37,76 +37,6 @@
         + V4L2_CID_PRIV_OFFSET + 1)
 #define V4L2_CID_PRIV_COLORKEY_EN    (V4L2_CID_PRIVATE_BASE \
         + V4L2_CID_PRIV_OFFSET + 2)
-
-int v4l2_overlay_open(struct hwc_win_info_t_heo *win, const char *dir)
-{
-    LOG_FUNCTION_NAME
-
-    char name[64];
-    char const * const device_template = "/dev/%s";
-
-    snprintf(name, 64, device_template, dir);
-
-    win->fd = open(name, O_RDWR);
-    if (win->fd < 0) {
-        ALOGE("%s::Failed to open window device (%s) : %s",
-				__func__, strerror(errno), name);
-        goto error;
-    }
-
-    if (v4l2_overlay_querycap(win->fd) < 0) {
-        ALOGD("%s:: we can not use %s", __func__, name);
-        goto error;
-    }
-
-    /* Reserve: if the video buffer address could used by DMA
-      * Then, win->zero_copy = true;
-      * Then we can reduce on copy
-      */
-    win->zero_copy = false;
-
-    ALOGD("%s, open %s successful: fd:%d", __func__, name, win->fd);
-
-    return 0;
-
-error:
-    if (0 <= win->fd)
-        close(win->fd);
-    win->fd = -1;
-    
-    return -1;
-
-}
-
-int v4l2_overlay_close(struct hwc_win_info_t_heo *win)
-{
-    int ret = 0;
-    ALOGD("%s, close fd %d", __func__, win->fd);
-    if (0 <= win->fd){
-        /* ummap */
-        if (!win->zero_copy) {
-            for (unsigned int i = 0; i < win->num_of_buffer; i++) {
-                v4l2_overlay_unmap_buf(win->buffers[i], win->buffers_len[i]);
-            }
-        }
-        /* request 0 buffer */
-        win->num_of_buffer = 0;
-        if (v4l2_overlay_req_buf(win) < 0) {
-            ALOGE("%s:Failed requesting buffers\n", __func__);
-        }
-
-        /* close */
-        ret = close(win->fd);
-    }
-    win->fd = -1;
-
-    if(win->buffers)
-        delete [] win->buffers;
-    if(win->buffers_len)
-        delete [] win->buffers_len;      
-
-    return ret;
-}
 
 void dump_pixfmt(struct v4l2_pix_format *pix)
 {
@@ -212,8 +142,8 @@ int configure_pixfmt(struct v4l2_pix_format *pix, int32_t fmt,
         pix->pixelformat = V4L2_PIX_FMT_YUV420;
         break;
 	case HAL_PIXEL_FORMAT_YCbCr_422_I:
-		pix->pixelformat = V4L2_PIX_FMT_YUYV;
-		break;
+        pix->pixelformat = V4L2_PIX_FMT_YUYV;
+        break;
     default:
         ALOGE("%s: unknow format %d", __func__, fmt);
         return -1;
@@ -245,109 +175,71 @@ void get_window(struct v4l2_format *format, int32_t *x,
     *h = format->fmt.win.w.height;
 }
 
-int v4l2_overlay_querycap(int fd)
+int __v4l2_overlay_querycap(int fd, char *cardname)
 {
     LOG_FUNCTION_NAME
     struct v4l2_capability cap;
-    const char *p;
     int ret = 0;
 
-    ret = ioctl(fd, VIDIOC_QUERYCAP, &cap);
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_QUERYCAP, &cap, "query cap");
 
-    if (ret < 0) {
-        ALOGE("ERR(%s):VIDIOC_QUERYCAP failed\n", __func__);
-        return -1;
-    }
-    p = (const char*)cap.card;
-    if (strcmp(p, "Atmel HEO Layer")) {
-        ALOGD("Not a heo device\n");
-        return -1;
-    }
+    if (ret)
+        return ret;
+
+    memcpy(cardname, cap.card, sizeof(cap.card));
 
     return ret;
 }
 
-int v4l2_overlay_init(struct hwc_win_info_t_heo *win)
+int __v4l2_overlay_set_output_fmt(int fd, uint32_t w, uint32_t h, uint32_t fmt)
 {
-    LOG_FUNCTION_NAME
-
     struct v4l2_format format;
-    struct v4l2_framebuffer fbuf;
     int ret = 0;
-    int fd = win->fd;
-    int w = win->video_width;
-    int h = win->video_height;
-    int fmt = win->layer_prev_format;
 
     format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+
     ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format, "get format");
+
     if (ret)
         return ret;
-    ALOGV("v4l2_overlay_init:: w=%d h=%d\n", format.fmt.pix.width,
-         format.fmt.pix.height);
 
     format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+
     configure_pixfmt(&format.fmt.pix, fmt, w, h);
-    ALOGV("v4l2_overlay_init:: w=%d h=%d\n", format.fmt.pix.width,
-         format.fmt.pix.height);
+
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format, "set output format");
 
     return ret;
 }
 
-int v4l2_overlay_get_input_size_and_format(int fd, uint32_t *w, uint32_t *h
-                                                 , uint32_t *fmt)
+int __v4l2_overlay_set_overlay_fmt(int fd, uint32_t t, uint32_t l, uint32_t w, uint32_t h)
 {
-    LOG_FUNCTION_NAME
-
     struct v4l2_format format;
+    struct v4l2_window *win;
     int ret = 0;
 
-    format.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-    ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format, "get format");
-    *w = format.fmt.pix.width;
-    *h = format.fmt.pix.height;
-    if (format.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
-        *fmt = V4L2_PIX_FMT_YUYV; //TODO: Dold one is OVERLAY_FORMAT_CbYCrY_422_I
-    else
-        return -EINVAL;
-    return ret;
-}
-
-int v4l2_overlay_set_position(struct hwc_win_info_t_heo *win)
-{
-    LOG_FUNCTION_NAME
-
-    struct v4l2_format format;
-    int ret = 0;
-    int fd = win->fd;
-    int rot_x = win->rect_info.x, rot_y = win->rect_info.y;
-    int rot_w = win->rect_info.w, rot_h = win->rect_info.h;
-
-    /* configure the src format pix */
-    /* configure the dst v4l2_overlay window */
     format.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_G_FMT, &format,
             "get v4l2_overlay format");
+
     if (ret)
         return ret;
-    ALOGV("v4l2_overlay_set_position:: w=%d h=%d", format.fmt.win.w.width
-                                                , format.fmt.win.w.height);
 
-    configure_window(&format.fmt.win, rot_w, rot_h, rot_x, rot_y);
+    win = &format.fmt.win;
+    win->w.left = l;
+    win->w.top = t;
+    win->w.width = w;
+    win->w.height = h;
 
     format.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
     ret = v4l2_overlay_ioctl(fd, VIDIOC_S_FMT, &format,
             "set v4l2_overlay format");
 
-    ALOGV("v4l2_overlay_set_position:: w=%d h=%d rotation=%d"
-                 , format.fmt.win.w.width, format.fmt.win.w.height, rotation);
-
     if (ret)
         return ret;
-    v4l2_overlay_dump_state(fd);
 
     return 0;
+    
 }
 
 int v4l2_overlay_get_position(int fd, int32_t *x, int32_t *y, int32_t *w,
@@ -382,39 +274,20 @@ int v4l2_overlay_set_rotation(int fd, int degree, int step)
 	return 0;
 }
 
-int v4l2_overlay_req_buf(struct hwc_win_info_t_heo *win)
+int __v4l2_overlay_req_buf(int fd, uint32_t* reqbufnum, v4l2_memory memtype)
 {
     struct v4l2_requestbuffers reqbuf;
     int ret = 0;
 
     reqbuf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+    reqbuf.memory = memtype;
+    reqbuf.count = *reqbufnum;
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_REQBUFS, &reqbuf, "req bufs");
 
-    if (win->zero_copy)
-        reqbuf.memory = V4L2_MEMORY_USERPTR;
-    else
-        reqbuf.memory = V4L2_MEMORY_MMAP;
-    reqbuf.count = win->num_of_buffer;
-
-    ret = ioctl(win->fd, VIDIOC_REQBUFS, &reqbuf);
-    if (ret) {
-        error(win->fd, "reqbuf ioctl");
-		ALOGE("VIDIOC_REQBUFS ERROR");
+    if(ret)
         return ret;
-    }
 
-    /* Note: need more considertion
-      * We use dynamic buffer allocate, so we may need to remove this limitaiton
-      */
-    if (reqbuf.count > win->num_of_buffer) {
-        error(win->fd, "Not enough buffer structs passed to get_buffers");
-        return -ENOMEM;
-    }
-	
-    if ((reqbuf.count == 0) && (reqbuf.count != win->num_of_buffer)) {
-        ALOGE("request buffer error, get 0 buffer");		
-        return -ENOSPC;
-    }
-    win->num_of_buffer = reqbuf.count;
+    *reqbufnum = reqbuf.count;
 
     return 0;
 }
@@ -452,10 +325,8 @@ int v4l2_overlay_query_buffer(int fd, int index, struct v4l2_buffer *buf)
     return v4l2_overlay_ioctl(fd, VIDIOC_QUERYBUF, buf, "querybuf ioctl");
 }
 
-int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len)
+int __v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len)
 {
-    LOG_FUNCTION_NAME
-
     struct v4l2_buffer buf;
     int ret = 0;
 
@@ -463,97 +334,63 @@ int v4l2_overlay_map_buf(int fd, int index, void **start, size_t *len)
     if (ret)
         return ret;
 
-    if (is_mmaped(&buf)) {
-        ALOGE("Trying to mmap buffers that are already mapped!\n");
+    if (is_mmaped(&buf))
         return -EINVAL;
-    }
 
     *len = buf.length;
     *start = mmap(NULL, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED,
             fd, buf.m.offset);
-    if (*start == MAP_FAILED) {
-        ALOGE("map failed, length=%u offset=%u\n", buf.length, buf.m.offset);
+    
+    if (*start == MAP_FAILED)
         return -EINVAL;
-    }
+
     return 0;
 }
 
-int v4l2_overlay_unmap_buf(void *start, size_t len)
+int __v4l2_overlay_unmap_buf(void *start, size_t len)
 {
     LOG_FUNCTION_NAME
     return munmap(start, len);
 }
 
-int v4l2_overlay_stream_on(struct hwc_win_info_t_heo *win)
+int __v4l2_overlay_stream_on(int fd)
 {
     int ret = 0;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 
-    if (!win->steamEn) {
-        ret = v4l2_overlay_ioctl(win->fd, VIDIOC_STREAMON, &type, "stream on");
-        if (ret) {
-            ALOGE("%s: Stream on Failed!/%d", __func__, ret);
-        } else {
-            win->steamEn = true;
-        }
-    } else {
-        ALOGV("%s: stream has already on");
-    }    
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMON, &type, "stream on");
+
+    if(ret) {
+        ALOGE("%s: Stream on Failed!/%d", __func__, ret);
+    }
 
     return ret;
 }
 
-int v4l2_overlay_stream_off(struct hwc_win_info_t_heo *win)
+int __v4l2_overlay_stream_off(int fd)
 {
-    int ret = 0;;
+    int ret = 0;
     uint32_t type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
 
-    if (win->steamEn) {
-        ret = v4l2_overlay_ioctl(win->fd, VIDIOC_STREAMOFF, &type, "stream off");
-        if (ret) {
-            ALOGE("%s: Stream Off Failed!/%d", __func__, ret);
-        } else {
-            win->steamEn = false;
-        }
-    } else {
-        ALOGV("%s: stream has already off");
+    ret = v4l2_overlay_ioctl(fd, VIDIOC_STREAMOFF, &type, "stream off");
+
+    if(ret) {
+        ALOGE("%s: Stream Off Failed!/%d", __func__, ret);
     }
 
     return ret;
 }
 
-int v4l2_overlay_q_buf(int fd, int buffer, int zerocopy)
+int __v4l2_overlay_q_buf(int fd, unsigned length, int pPhyCAddr,
+                             int buffer, v4l2_memory memtype)
 {
     struct v4l2_buffer buf;
-    int ret = 0;;
+    int ret = 0;
 
-    if (zerocopy) {
-        /* TODO: the following code need to re-consider, we need a dma addr for softwarerender*/
-        uint8_t *pPhyYAddr;
-        uint8_t *pPhyCAddr;
-        struct fimc_buf fimc_src_buf;
-        uint8_t index;
-
-        memcpy(&pPhyYAddr, (void *) buffer, sizeof(pPhyYAddr));
-        memcpy(&pPhyCAddr, (void *) (buffer + sizeof(pPhyYAddr)),
-               sizeof(pPhyCAddr));
-        memcpy(&index,
-               (void *) (buffer + sizeof(pPhyYAddr) + sizeof(pPhyCAddr)),
-               sizeof(index));
-
-        fimc_src_buf.base[0] = (dma_addr_t) pPhyYAddr;
-        fimc_src_buf.base[1] = (dma_addr_t) pPhyCAddr;
-        fimc_src_buf.base[2] =
-               (dma_addr_t) (pPhyCAddr + (pPhyCAddr - pPhyYAddr)/4);
-
-        buf.index = index;
-        buf.memory      = V4L2_MEMORY_USERPTR;
-        buf.m.userptr   = (unsigned long)&fimc_src_buf;
-        buf.length      = 0;
-    } else {
-        buf.index = buffer;
-        buf.memory      = V4L2_MEMORY_MMAP;
-    }
+    buf.index = buffer;
+    buf.memory = memtype;
+    buf.m.userptr = (unsigned long)pPhyCAddr;
+    buf.length = length;
 
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     buf.field = V4L2_FIELD_NONE;
@@ -564,21 +401,19 @@ int v4l2_overlay_q_buf(int fd, int buffer, int zerocopy)
     return v4l2_overlay_ioctl(fd, VIDIOC_QBUF, &buf, "qbuf");
 }
 
-int v4l2_overlay_dq_buf(int fd, int *index, int zerocopy)
+int __v4l2_overlay_dq_buf(int fd, int *index, v4l2_memory memtype)
 {
     struct v4l2_buffer buf;
-    int ret = 0;;
+    int ret = 0;
 
     buf.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-
-    if (zerocopy)
-        buf.memory = V4L2_MEMORY_USERPTR;
-    else
-        buf.memory = V4L2_MEMORY_MMAP;
+    buf.memory = memtype;
 
     ret = v4l2_overlay_ioctl(fd, VIDIOC_DQBUF, &buf, "dqbuf");
     if (ret)
         return ret;
+
     *index = buf.index;
     return 0;
 }
+

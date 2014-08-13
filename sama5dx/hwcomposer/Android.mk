@@ -20,10 +20,17 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := libcutils liblog libEGL
+LOCAL_SHARED_LIBRARIES := libcutils liblog libEGL libutils libsync
 LOCAL_MODULE_TAGS := optional
 LOCAL_PRELINK_MODULE := false
-LOCAL_SRC_FILES := hwcomposer.cpp SamHWCutils.cpp v4l2_utils.cpp
+LOCAL_SRC_FILES := \
+	hwcomposer.cpp \
+	v4l2_utils.cpp \
+	overlayer.cpp \
+	heolayer.cpp \
+	hwvsync.cpp \
+	hwcomposerinterface.cpp
+
 LOCAL_MODULE := hwcomposer.$(TARGET_BOOTLOADER_BOARD_NAME)
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_C_INCLUDES += hardware/atmel/sama5dx/gralloc
