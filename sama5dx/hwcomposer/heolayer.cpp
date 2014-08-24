@@ -437,11 +437,14 @@ status_t heolayer::freeBufMemory()
             __v4l2_overlay_unmap_buf(mBufVirAddr[i], mBufSize[i]);
         }
 
-        if(mBufVirAddr)
+        if(mBufVirAddr) {
             delete [] mBufVirAddr;
-        if(mBufSize)
+            mBufVirAddr = NULL;
+        }
+        if(mBufSize) {
             delete [] mBufSize;
-        
+            mBufSize = NULL;
+        }
         break;
     case V4L2_MEMORY_USERPTR:
         break;
