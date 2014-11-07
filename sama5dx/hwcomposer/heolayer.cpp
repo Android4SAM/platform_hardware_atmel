@@ -41,7 +41,8 @@ heolayer::heolayer(uint32_t id)
       mLCDDisplayWidth(0),
       mLCDDisplayHeight(0),
       mStreamStatus(false),
-      mV4l2Memory(V4L2_MEMORY_MMAP)
+      mV4l2Memory(V4L2_MEMORY_MMAP),
+      mUsePtrEnabled(false)
 {
     char name[64];
     char const * const device_template = "/dev/video%u";
@@ -133,6 +134,9 @@ status_t heolayer::prepare(const hwc_layer_1_t * displayer,uint32_t displayerid)
 {
     uint32_t layerid;
     bool     srcBufSizeUpdate = false;
+    bool     v4l2MemoryTypeChanged = false;
+    bool     usePtrEnabled = false;
+
     if(!getDisplayer(layerid)) {
         ALOGE("%s:: could not handle this layer %d", __func__, displayerid);
         return NO_INIT;
@@ -174,15 +178,18 @@ status_t heolayer::prepare(const hwc_layer_1_t * displayer,uint32_t displayerid)
         srcBufSizeUpdate = true;
     }
 
-    if(!mWindowInfo.updated && !srcBufSizeUpdate)
+    if(prev_handle->flags & private_handle_t::PRIV_FLAGS_DMABUFFER)
+        usePtrEnabled = true;
+    else
+        usePtrEnabled = false;
+
+    if (usePtrEnabled != mUsePtrEnabled)
+        v4l2MemoryTypeChanged = true;
+
+    if(!mWindowInfo.updated && !srcBufSizeUpdate && !v4l2MemoryTypeChanged)
         return NO_ERROR;
 
-    if(prev_handle->flags & private_handle_t::PRIV_FLAGS_DMABUFFER)
-        enableUserPtr();
-    else
-        disableUserPtr();
-
-    if(prepareBuffers() != NO_ERROR) {
+    if(prepareBuffers(usePtrEnabled) != NO_ERROR) {
         ALOGE("%s:: prepare failed", __func__);
         return UNKNOWN_ERROR;
     }
@@ -259,6 +266,7 @@ status_t heolayer::enableUserPtr()
 {
     Mutex::Autolock _l(mLock);
     mV4l2Memory = V4L2_MEMORY_USERPTR;
+    mUsePtrEnabled = true;
     return NO_ERROR;
 }
 
@@ -266,6 +274,7 @@ status_t heolayer::disableUserPtr()
 {
     Mutex::Autolock _l(mLock);
     mV4l2Memory = V4L2_MEMORY_MMAP;
+    mUsePtrEnabled = false;
     return NO_ERROR;
 }
 
@@ -499,7 +508,7 @@ status_t heolayer::updateWindowInfo()
     return NO_ERROR;
 }
 
-status_t heolayer::prepareBuffers()
+status_t heolayer::prepareBuffers(bool usePtrEnabled)
 {
     status_t ret;
 
@@ -510,6 +519,11 @@ status_t heolayer::prepareBuffers()
         ALOGE("%s:: falied to freeBufMemory", __func__);
         return ret;
     }
+
+    if (usePtrEnabled)
+        enableUserPtr();
+    else
+        disableUserPtr();
 
     ret = allocateBufMemory();
 

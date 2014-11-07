@@ -58,7 +58,7 @@ private:
     status_t    allocateBufMemory();
     status_t    freeBufMemory();
     status_t    updateWindowInfo();
-    status_t    prepareBuffers();
+    status_t    prepareBuffers(bool usePtrEnabled);
     status_t    dqBuf();
 
     int32_t     mLayerFd;
@@ -77,6 +77,7 @@ private:
     window_info_t    mWindowInfo;
     bool        mStreamStatus;
     enum v4l2_memory mV4l2Memory;
+    bool        mUsePtrEnabled;
 
     class DqbufThread : public Thread {
         public:
