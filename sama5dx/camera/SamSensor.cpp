@@ -63,15 +63,17 @@ SamSensor::SamSensor(SamCamera* camera_hal)
     : SamSensorBase(camera_hal),
       mHasRealHardware(true)
 {
-    int ret = 0;
+    int fd;
     ALOGV("%s", __FUNCTION__);
     
-    ret = init();
-    if (ret < 0) {
-        ALOGE("ERR(%s):Failed on init", __FUNCTION__);
+    fd = open("/dev/video1", O_RDWR);
+    if (fd < 0) {
+        ALOGE("ERR(%s):open /dev/video1 failed", __FUNCTION__);
         mHasRealHardware = false;
         return;
     }
+
+    close(fd);
 }
 
 SamSensor::~SamSensor()
@@ -102,6 +104,8 @@ status_t SamSensor::connectDevice()
         return NO_ERROR;
     }
 
+    init();
+
     /* There is no device to connect to. */
     mState = ECDS_CONNECTED;
 
@@ -122,6 +126,8 @@ status_t SamSensor::disconnectDevice()
         ALOGE("%s: Cannot disconnect from the started device.", __FUNCTION__);
         return EINVAL;
     }
+
+    close(mCamFd);
 
     /* There is no device to disconnect from. */
     mState = ECDS_INITIALIZED;
