@@ -81,9 +81,9 @@ status_t SamCamera::Initialize()
     /* 320x240 frame dimensions are required by the framework for
      * video mode preview and video recording. */
     mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES,
-                    "640x480,320x240");
+                    "640x480");
     mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
-                    "640x480,320x240");
+                    "640x480");
     mParameters.setPreviewSize(640, 480);
     mParameters.setPictureSize(640, 480);
 
