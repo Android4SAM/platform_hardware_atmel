@@ -43,13 +43,13 @@
 
 #define MIXER_CARD 0
 
-#define OUT_PERIOD_SIZE 2048
+#define OUT_PERIOD_SIZE 1024
 #define OUT_SHORT_PERIOD_COUNT 2
-#define OUT_LONG_PERIOD_COUNT 8
+#define OUT_LONG_PERIOD_COUNT 16
 #define OUT_SAMPLING_RATE 44100
 
-#define IN_PERIOD_SIZE 1024
-#define IN_PERIOD_COUNT 4
+#define IN_PERIOD_SIZE 2048
+#define IN_PERIOD_COUNT 8
 #define IN_SAMPLING_RATE 44100
 
 #define SCO_PERIOD_SIZE 256
@@ -68,20 +68,22 @@ enum {
 };
 
 struct pcm_config pcm_config_out = {
-    .channels = 2,   
-    .rate = OUT_SAMPLING_RATE,    
-    .period_size = 1024,
-    .period_count = 16,
-    .format = PCM_FORMAT_S16_LE,    
+    .channels = 2,
+    .rate = OUT_SAMPLING_RATE,
+    .period_size = OUT_PERIOD_SIZE,
+    .period_count = OUT_LONG_PERIOD_COUNT,
+    .format = PCM_FORMAT_S16_LE,
+    .start_threshold = OUT_PERIOD_SIZE * OUT_SHORT_PERIOD_COUNT,
 };
 
 struct pcm_config pcm_config_in = {
     .channels = 2,
     .rate = IN_SAMPLING_RATE,
-    .period_size = 2048,
-    .period_count = 8,
+    .period_size = IN_PERIOD_SIZE,
+    .period_count = IN_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
     .start_threshold = 1,
+    .stop_threshold = (IN_PERIOD_SIZE * IN_PERIOD_COUNT),
 };
 
 struct pcm_config pcm_config_sco = {
@@ -302,10 +304,6 @@ static int start_output_stream(struct stream_out *out)
      * create a resampler.
      */
     if (out_get_sample_rate(&out->stream.common) != out->pcm_config->rate) {
-        if (out->resampler) {
-            release_resampler(out->resampler);
-            out->resampler = NULL;
-        }
         ret = create_resampler(out_get_sample_rate(&out->stream.common),
                                out->pcm_config->rate,
                                out->pcm_config->channels,
@@ -376,11 +374,6 @@ static int start_input_stream(struct stream_in *in)
     if (in_get_sample_rate(&in->stream.common) != in->pcm_config->rate) {
         in->buf_provider.get_next_buffer = get_next_buffer;
         in->buf_provider.release_buffer = release_buffer;
-
-        if (in->resampler) {
-            release_resampler(in->resampler);
-            in->resampler = NULL;
-        }
 
         ret = create_resampler(in->pcm_config->rate,
                                in_get_sample_rate(&in->stream.common),
@@ -629,13 +622,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     int kernel_frames;
     bool sco_on;
 
-    if (out->pcm && !pcm_is_ready(out->pcm)) {
-        /* XXX: fake timing for audio output */
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
-           out_get_sample_rate(&stream->common));
-        return bytes;
-    }
-
     /*
      * acquiring hw device mutex systematically is useful if a low
      * priority thread is waiting on the output stream mutex - e.g.
@@ -804,10 +790,6 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 {
     struct stream_out *out = (struct stream_out *)stream;
     int ret = -1;
-
-    if (out->pcm || !pcm_is_ready(out->pcm)) {
-        return -ENOSYS;
-    }
 
     pthread_mutex_lock(&out->lock);
 
@@ -1269,6 +1251,7 @@ static int adev_open(const hw_module_t* module, const char* name,
 {
     struct audio_device *adev;
     int ret;
+
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
         return -EINVAL;
 
