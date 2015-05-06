@@ -39,6 +39,7 @@ static int write_int(char const *path, int value)
 {
 	int fd;
 	static int already_warned = -1;
+	value = value ? 5 : 0;
 	fd = open(path, O_RDWR);
 	if (fd >= 0) {
 		char buffer[20];
