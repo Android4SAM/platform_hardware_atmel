@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-modules := libagl gralloc hwcomposer audio liblights hardwareloader camera
+modules := libagl gralloc hwcomposer audio liblights hardwareloader camera wpa_supplicant_8_lib
 
 include $(call all-named-subdir-makefiles,$(modules))
