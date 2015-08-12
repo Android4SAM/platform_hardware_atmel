@@ -1,4 +1,6 @@
 /*
+ * Copyright (C) 2010 ARM Limited. All rights reserved.
+ *
  * Copyright (C) 2008 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,120 +20,200 @@
 #define GRALLOC_PRIV_H_
 
 #include <stdint.h>
-#include <limits.h>
-#include <sys/cdefs.h>
-#include <hardware/gralloc.h>
 #include <pthread.h>
 #include <errno.h>
+#include <linux/fb.h>
+#include <sys/types.h>
 #include <unistd.h>
 
+#include <hardware/gralloc.h>
 #include <cutils/native_handle.h>
+#include <alloc_device.h>
+#include <utils/Log.h>
 
-#include <linux/fb.h>
-#include <linux/ioctl.h>
+/* use by MALI EGL */
+#define GRALLOC_ARM_DMA_BUF_MODULE 1
 
-/*****************************************************************************/
+/* the max string size of GRALLOC_HARDWARE_GPU0 & GRALLOC_HARDWARE_FB0
+ * 8 is big enough for "gpu0" & "fb0" currently
+ */
+#define MALI_GRALLOC_HARDWARE_MAX_STR_LEN 8
+#define NUM_FB_BUFFERS 2
 
-struct private_module_t;
+typedef enum
+{
+	MALI_YUV_NO_INFO,
+	MALI_YUV_BT601_NARROW,
+	MALI_YUV_BT601_WIDE,
+	MALI_YUV_BT709_NARROW,
+	MALI_YUV_BT709_WIDE,
+} mali_gralloc_yuv_info;
 
-#ifdef __cplusplus
 struct private_handle_t;
-#else
-typedef struct private_handle_t private_handle_t;
-#endif
 
-struct private_module_t {
-    gralloc_module_t base;
+struct private_module_t
+{
+	gralloc_module_t base;
 
-    private_handle_t* framebuffer;
-    uint32_t flags;
-    uint32_t numBuffers;
-    uint32_t bufferMask;
-    pthread_mutex_t lock;
-    buffer_handle_t currentBuffer;
-    int pmem_master;
-    void* pmem_master_base;
+	private_handle_t *framebuffer;
+	uint32_t flags;
+	uint32_t numBuffers;
+	uint32_t bufferMask;
+	pthread_mutex_t lock;
+	buffer_handle_t currentBuffer;
+	int ion_client;
+	int drm_fd;
 
-    struct fb_var_screeninfo info;
-    struct fb_fix_screeninfo finfo;
-    float xdpi;
-    float ydpi;
-    float fps;
+	struct fb_var_screeninfo info;
+	struct fb_fix_screeninfo finfo;
+	float xdpi;
+	float ydpi;
+	float fps;
+
+	enum
+	{
+		// flag to indicate we'll post this buffer
+		PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
+	};
+
+	/* default constructor */
+	private_module_t();
 };
 
-typedef struct {
-        unsigned busAddress;
-        unsigned size;
-} MemallocParams;
-
-#define MEMALLOC_IOC_MAGIC  'k'
-
-#define MEMALLOC_IOCXGETBUFFER    _IOWR(MEMALLOC_IOC_MAGIC, 1, MemallocParams*)
-#define MEMALLOC_IOCSFREEBUFFER   _IOW(MEMALLOC_IOC_MAGIC, 2, unsigned long*)
-
-/*****************************************************************************/
-
 #ifdef __cplusplus
-struct private_handle_t : public native_handle {
+struct private_handle_t : public native_handle
+{
 #else
-struct private_handle_t {
-    struct native_handle nativeHandle;
+struct private_handle_t
+{
+	struct native_handle nativeHandle;
 #endif
 
-    enum {
-        PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
-        PRIV_FLAGS_DMABUFFER = 0x00000002,
-    };
+	enum
+	{
+		/* keep those emun even we don't use them to let MAli
+		 * compile
+		 * PRIV_FLAGS_USES_ION is used for any type of dmabuf buffer */
+		PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
+		PRIV_FLAGS_USES_UMP    = 0x00000002,
+		PRIV_FLAGS_USES_ION    = 0x00000004,
+	};
 
-    // file-descriptors
-    int     fd;
-    // ints
-    int     magic;
-    int     flags;
-    int     size;
-    int     offset;
+	enum
+	{
+		LOCK_STATE_WRITE     =   1 << 31,
+		LOCK_STATE_MAPPED    =   1 << 30,
+		LOCK_STATE_READ_MASK =   0x3FFFFFFF
+	};
 
-    // FIXME: the attributes below should be out-of-line
-    int     base;
-    int     pid;
+	// file-descriptors
+	// shared file descriptor for dma_buf sharing
+	int     share_fd;
 
-    // ADD: By embest, we want the buffer message for hwcomposer
-    int     iFormat;
-    //Note: bits per pixel (32 for RGBA8888)
-    int    uiBpp;
-    int    stride;
+	// ints
+	int     magic;
+	int     flags;
+	int     usage;
+	int     size;
+	int     width;
+	int     height;
+	int     format;
+	int     stride;
+	void    *base;
+	int     lockState;
+	int     writeOwner;
+	int     pid;
 
-    // ADD: By embest, for alloc buffer from /dev/memalloc
-    unsigned busAddress;
+	mali_gralloc_yuv_info yuv_info;
+
+	// Following members is for framebuffer only
+	int     fd;
+	int     offset;
+
+	unsigned int drm_hnd;
+	int	plane_id;
 
 #ifdef __cplusplus
-    static const int sNumInts = 10;
-    static const int sNumFds = 1;
-    static const int sMagic = 0x3141592;
+	static const int sNumInts = 17;
+	static const int sNumFds = 1;
+	static const int sMagic = 0x3141592;
 
-    private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
-        base(0), pid(getpid())
-    {
-        version = sizeof(native_handle);
-        numInts = sNumInts;
-        numFds = sNumFds;
-    }
-    ~private_handle_t() {
-        magic = 0;
-    }
+	private_handle_t(int flags, int usage, int size, void *base, int lock_state):
+		share_fd(-1),
+		magic(sMagic),
+		flags(flags),
+		usage(usage),
+		size(size),
+		width(0),
+		height(0),
+		format(0),
+		stride(0),
+		base(base),
+		lockState(lock_state),
+		writeOwner(0),
+		pid(getpid()),
+		yuv_info(MALI_YUV_NO_INFO),
+		fd(0),
+		offset(0),
+		drm_hnd(0),
+		plane_id(0)
+	{
+		version = sizeof(native_handle);
+		numFds = sNumFds;
+		numInts = sNumInts;
+	}
 
-    static int validate(const native_handle* h) {
-        const private_handle_t* hnd = (const private_handle_t*)h;
-        if (!h || h->version != sizeof(native_handle) ||
-                h->numInts != sNumInts || h->numFds != sNumFds ||
-                hnd->magic != sMagic)
-        {
-            ALOGE("invalid gralloc handle (at %p)", h);
-            return -EINVAL;
-        }
-        return 0;
-    }
+	private_handle_t(int flags, int usage, int size, void *base, int lock_state, int fb_file, int fb_offset):
+		share_fd(-1),
+		magic(sMagic),
+		flags(flags),
+		usage(usage),
+		size(size),
+		width(0),
+		height(0),
+		format(0),
+		stride(0),
+		base(base),
+		lockState(lock_state),
+		writeOwner(0),
+		pid(getpid()),
+		yuv_info(MALI_YUV_NO_INFO),
+		fd(fb_file),
+		offset(fb_offset),
+		drm_hnd(0),
+		plane_id(0)
+	{
+		version = sizeof(native_handle);
+		numFds = sNumFds;
+		numInts = sNumInts;
+	}
+
+	~private_handle_t()
+	{
+		magic = 0;
+	}
+
+	static int validate(const native_handle *h)
+	{
+		const private_handle_t *hnd = (const private_handle_t *)h;
+
+		if (!h || h->version != sizeof(native_handle) || h->numInts != sNumInts || h->numFds != sNumFds || hnd->magic != sMagic)
+		{
+			return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	static private_handle_t *dynamicCast(const native_handle *in)
+	{
+		if (validate(in) == 0)
+		{
+			return (private_handle_t *) in;
+		}
+
+		return NULL;
+	}
 #endif
 };
 

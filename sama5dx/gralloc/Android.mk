@@ -1,3 +1,6 @@
+# 
+# Copyright (C) 2010 ARM Limited. All rights reserved.
+# 
 # Copyright (C) 2008 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,19 +18,26 @@
 
 LOCAL_PATH := $(call my-dir)
 
-# HAL module implemenation stored in
+# HAL module implemenation, not prelinked and stored in
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
-
+LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := liblog libcutils
 
-LOCAL_SRC_FILES := 	\
-	gralloc.cpp 	\
-	framebuffer.cpp \
-	mapper.cpp
-	
 LOCAL_MODULE := gralloc.$(TARGET_BOOTLOADER_BOARD_NAME)
-LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
+#LOCAL_MODULE_TAGS := optional
+
+LOCAL_SHARED_LIBRARIES := libdrm libhardware liblog libcutils
+
+LOCAL_C_INCLUDES := system/core/include/ \
+	$(LOCAL_PATH)/../../../../external/drm \
+        $(LOCAL_PATH)/../../../../external/drm/include/drm \
+        $(LOCAL_PATH)/../../include
+
+LOCAL_CFLAGS := -DLOG_TAG=\"gralloc\" -DGRALLOC_32_BITS -DSTANDARD_LINUX_SCREEN -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION)
+
+LOCAL_SRC_FILES := \
+	gralloc_module.cpp \
+	alloc_device.cpp
 
 include $(BUILD_SHARED_LIBRARY)
