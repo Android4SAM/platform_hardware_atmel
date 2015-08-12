@@ -1,0 +1,25 @@
+
+#!/bin/sh
+
+INDENT=indent
+
+# Run twice. GNU indent isn't idempotent
+# when run once
+for i in 1 2; do
+$INDENT \
+  --braces-on-if-line \
+  --case-brace-indentation0 \
+  --case-indentation4 \
+  --braces-after-struct-decl-line \
+  --no-tabs \
+  --cuddle-else \
+  --dont-line-up-parentheses \
+  --continuation-indentation8 \
+  --honour-newlines \
+  --tab-size8 \
+  --indent-level4 \
+  --leave-preprocessor-space \
+  --no-space-after-function-call-names \
+  --line-length100 \
+  $* || exit $?
+done

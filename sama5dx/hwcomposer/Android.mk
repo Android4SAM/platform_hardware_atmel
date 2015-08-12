@@ -19,20 +19,19 @@ LOCAL_PATH := $(call my-dir)
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
 
+GRALLOC_PATH := ../gralloc
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
-LOCAL_SHARED_LIBRARIES := libcutils liblog libEGL libutils libsync
-LOCAL_MODULE_TAGS := optional
-LOCAL_PRELINK_MODULE := false
-LOCAL_SRC_FILES := \
-	hwcomposer.cpp \
-	v4l2_utils.cpp \
-	overlayer.cpp \
-	heolayer.cpp \
-	hwvsync.cpp \
-	hwcomposerinterface.cpp
-
+LOCAL_SHARED_LIBRARIES := liblog libdrm libhardware libsync libcutils
+#libion
+LOCAL_SRC_FILES := hwcomposer.cpp
 LOCAL_MODULE := hwcomposer.$(TARGET_BOOTLOADER_BOARD_NAME)
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
-LOCAL_C_INCLUDES += hardware/atmel/sama5dx/gralloc
-LOCAL_MODULE_TAGS := optional
+LOCAL_MODULE_TAGS := eng
+LOCAL_C_INCLUDES += \
+        $(TOP)/${GRALLOC_PATH} \
+        $(TOP)/external/drm \
+        $(TOP)/external/drm/include/drm \
+        $(TOP)/hardware/libhardware/include \
+        $(TOP)/system/core/include/sync
+
 include $(BUILD_SHARED_LIBRARY)
