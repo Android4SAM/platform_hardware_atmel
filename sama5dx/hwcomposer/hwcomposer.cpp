@@ -75,87 +75,6 @@ static const struct hwc_connector connector_list[] = {
     CONN_STR_AND_INT(eDP)
 };
 
-#if DEBUG_ST_HWCOMPOSER_FENCE
-static void
-dbg_timeline_dump(timeline_info_t * timeline, int plane_index)
-{
-    int i;
-    char dump_str[255], val[32];
-
-    switch (plane_index) {
-        case CURSOR_INDEX:
-            sprintf(dump_str, "   { cursor = [");
-            break;
-
-        case COMPO_INDEX:
-            sprintf(dump_str, "   { compo  = [");
-            break;
-
-        default:
-            if (plane_index >= 0)
-                sprintf(dump_str, "   { plane%d = [", plane_index);
-            else
-                sprintf(dump_str, "   { ???  %d = [", plane_index);
-            break;
-    }
-
-    for (i = 0; i < DBG_MAX_PT; i++) {
-        if (timeline->dbg_status[i].status == PT_PENDING) {
-            sprintf(val, " %d", timeline->dbg_status[i].value);
-            strcat(dump_str, val);
-        }
-    }
-
-    strcat(dump_str, "] }");
-
-    ALOGI(dump_str);
-}
-
-static void
-dbg_timeline_insert(timeline_info_t * timeline, unsigned value)
-{
-    int i;
-
-    for (i = 0; i < DBG_MAX_PT; i++) {
-        if ((timeline->dbg_status[i].status == PT_PENDING) &&
-                (timeline->dbg_status[i].value == value))
-            return;
-    }
-
-    for (i = 0; i < DBG_MAX_PT; i++) {
-        if (timeline->dbg_status[i].status == PT_FREE)
-            break;
-    }
-
-    if (i == DBG_MAX_PT) {
-        ALOGE("   { Timeline full! }");
-        return;
-    }
-
-    timeline->dbg_status[i].status = PT_PENDING;
-    timeline->dbg_status[i].value = value;
-}
-
-static void
-dbg_timeline_remove(timeline_info_t * timeline, unsigned value)
-{
-    int i;
-
-    for (i = 0; i < DBG_MAX_PT; i++) {
-        if ((timeline->dbg_status[i].value == value) &&
-                (timeline->dbg_status[i].status == PT_PENDING))
-            break;
-    }
-
-    if (i == DBG_MAX_PT) {
-        ALOGE("   { Timeline : cannot find %d }", value);
-        return;
-    }
-
-    timeline->dbg_status[i].status = PT_FREE;
-}
-#endif
-
 static void
 release_drm_fb(int fd, fb_info_t * fb_info)
 {
@@ -214,29 +133,6 @@ signal_fence(timeline_info_t * timeline, int plane_index)
     sw_sync_timeline_inc(timeline->timeline, 1);
     timeline->signaled_fences++;
 
-#if DEBUG_ST_HWCOMPOSER_FENCE
-    switch (plane_index) {
-        case CURSOR_INDEX:
-            ALOGI("   { pt! : cursor @ %d }", timeline->signaled_fences);
-            break;
-
-        case COMPO_INDEX:
-            ALOGI("   { pt! : compo  @ %d }", timeline->signaled_fences);
-            break;
-
-        default:
-            if (plane_index >= 0)
-                ALOGI("   { pt! : plane%d @ %d }", plane_index, timeline->signaled_fences);
-            else
-                ALOGI("   { pt! : ???  %d @ %d }", plane_index, timeline->signaled_fences);
-            break;
-    }
-
-    dbg_timeline_remove(timeline, timeline->signaled_fences);
-#else
-    (void) plane_index;
-#endif
-
     pthread_mutex_unlock(&timeline->lock);
 }
 
@@ -250,29 +146,6 @@ create_fence(timeline_info_t * timeline, unsigned relative, int plane_index)
 
     new_pt = timeline->signaled_fences + relative;
     fd = sw_sync_fence_create(timeline->timeline, "Fence", new_pt);
-
-#if DEBUG_ST_HWCOMPOSER_FENCE
-    switch (plane_index) {
-        case CURSOR_INDEX:
-            ALOGI("   { pt+ : cursor @ %d }", new_pt);
-            break;
-
-        case COMPO_INDEX:
-            ALOGI("   { pt+ : compo  @ %d }", new_pt);
-            break;
-
-        default:
-            if (plane_index >= 0)
-                ALOGI("   { pt+ : plane%d @ %d }", plane_index, new_pt);
-            else
-                ALOGI("   { pt+ : ???  %d @ %d }", plane_index, new_pt);
-            break;
-    }
-
-    dbg_timeline_insert(timeline, new_pt);
-#else
-    (void) plane_index;
-#endif
 
     pthread_mutex_unlock(&timeline->lock);
 
@@ -342,12 +215,6 @@ vblank_handler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, 
         signal_fence(&kdisp->retire_sync, COMPO_INDEX);
         kdisp->compo_updated = false;
     }
-#if DEBUG_ST_HWCOMPOSER_FENCE
-    dbg_timeline_dump(&kdisp->retire_sync, COMPO_INDEX);
-    for (i = 0; i < (int) kdisp->ctx->nb_planes; i++)
-        dbg_timeline_dump(&kdisp->release_sync[i], i);
-    dbg_timeline_dump(&kdisp->release_sync_cursor, CURSOR_INDEX);
-#endif
 }
 
 static int
@@ -487,48 +354,11 @@ destroy_display(kms_display_t * d)
         close(d->release_sync_cursor.timeline);
 }
 
-#if DEBUG_ST_HWCOMPOSER
-static const char *
-composition_type_str(int32_t type)
-{
-    const char *name[] = {
-        "FB      ",
-        "Overlay ",
-        "Backgnd ",
-        "FBTarget",
-        "Sideband",
-        "Cursor  ",
-        "UNKNOWN "
-    };
-
-    if ((type >= HWC_FRAMEBUFFER) && (type <= HWC_CURSOR_OVERLAY))
-        return name[type];
-
-    return name[HWC_CURSOR_OVERLAY + 1];
-}
-
-static void
-dump_layer(hwc_layer_1_t * l, int i)
-{
-    private_handle_t const *hnd = reinterpret_cast < private_handle_t const *>(l->handle);
-
-    ALOGI(" [%d] %s, flags=0x%02x, handle=%p, fd=%3d, tr=0x%02x, blend=0x%04x,"
-            " {%dx%d @ (%d,%d)} <- {%dx%d @ (%d,%d)}, acqFd=%d",
-            i, composition_type_str(l->compositionType), l->flags,
-            l->handle, hnd ? hnd->share_fd : -1,
-            l->transform, l->blending,
-            l->displayFrame.right - l->displayFrame.left,
-            l->displayFrame.bottom - l->displayFrame.top, l->displayFrame.left, l->displayFrame.top,
-            l->sourceCrop.right - l->sourceCrop.left, l->sourceCrop.bottom - l->sourceCrop.top,
-            l->sourceCrop.left, l->sourceCrop.top, l->acquireFenceFd);
-}
-#else
 static void
 dump_layer(hwc_layer_1_t * l, int i)
 {
     (void) l, i;
 }
-#endif
 
 static void *
 event_handler(void *arg)
