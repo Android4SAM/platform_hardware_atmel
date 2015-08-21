@@ -35,7 +35,9 @@
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
 
-#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "alloc_device.h"
 #include "gralloc_priv.h"
@@ -49,6 +51,87 @@
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
 #endif
+
+inline size_t roundUpToPageSize(size_t x) {
+    return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
+}
+
+static int gralloc_map(gralloc_module_t const* module,
+        buffer_handle_t handle,
+        void** vaddr)
+{
+    private_handle_t* hnd = (private_handle_t*)handle;
+    if (hnd->flags & private_handle_t::PRIV_FLAGS_DMABUFFER) {
+        void* mappedAddress = mmap(0, hnd->size,
+                PROT_READ | PROT_WRITE, MAP_SHARED, hnd->fd, hnd->busAddress);
+        if (mappedAddress == MAP_FAILED) {
+            ALOGE("Could not mmap from memalloc %s", strerror(errno));
+            return -errno;
+        }
+        hnd->base = (mappedAddress) + hnd->offset;
+    } else if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
+        size_t size = hnd->size;
+        void* mappedAddress = mmap(0, size,
+                PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd, 0);
+        if (mappedAddress == MAP_FAILED) {
+            ALOGE("Could not mmap %s", strerror(errno));
+            return -errno;
+        }
+        hnd->base = (mappedAddress) + hnd->offset;
+        //ALOGD("gralloc_map() succeeded fd=%d, off=%d, size=%d, vaddr=%p",
+        //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
+    }
+    *vaddr = (void*)hnd->base;
+    return 0;
+}
+
+int mapBuffer(gralloc_module_t const* module,
+        private_handle_t* hnd)
+{
+    void* vaddr;
+    return gralloc_map(module, hnd, &vaddr);
+}
+
+static int gralloc_alloc_dma_coherent_buffer(alloc_device_t* dev,
+        size_t size, int usage, buffer_handle_t* pHandle)
+{
+    int err = 0;
+    int fd = -1;
+
+    size = roundUpToPageSize(size);
+
+    fd = open("/dev/memalloc", O_RDWR | O_SYNC);
+    if (fd < 0) {
+        ALOGE("couldn't create dma coherent buffer (%s)", strerror(-errno));
+        err = -errno;
+   }
+
+    if (err == 0) {
+        private_handle_t* hnd = new private_handle_t( private_handle_t::PRIV_FLAGS_DMABUFFER, size, fd);
+        MemallocParams params;
+        memset(&params, 0, sizeof(MemallocParams));
+        params.size = hnd->size;
+        // get linear memory buffer
+        ioctl(hnd->fd, MEMALLOC_IOCXGETBUFFER, &params);
+
+        if (params.busAddress == 0) {
+            ALOGE("alloc->fd_memalloc failed (size=%d) - INSUFFICIENT_RESOURCES", params.size);
+            return -ENOMEM;
+        }
+
+        hnd->busAddress = params.busAddress;
+        gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
+                dev->common.module);
+        err = mapBuffer(module, hnd);
+        if (err == 0) {
+            *pHandle = hnd;
+        }
+    }
+
+    ALOGE_IF(err, "gralloc dma coherent buffer failed err=%s", strerror(-err));
+
+    return err;
+}
 
 static int gralloc_alloc_buffer(alloc_device_t *dev, int width, int height, int bpp, int usage, size_t *stride, buffer_handle_t *pHandle)
 {
@@ -122,6 +205,7 @@ static int alloc_device_alloc(alloc_device_t *dev, int w, int h, int format, int
 	size_t size;
 	size_t stride = 0;
 	int bpp = 0;
+	int err = 0;
 
 	switch (format)
 	{
@@ -150,7 +234,18 @@ static int alloc_device_alloc(alloc_device_t *dev, int w, int h, int format, int
 	}
 
 	w = GRALLOC_ALIGN(w, 8);
-	int err = gralloc_alloc_buffer(dev, w, h, bpp, usage, &stride, pHandle);
+
+	int private_usage = usage & (GRALLOC_USAGE_PRIVATE_0 | GRALLOC_USAGE_PRIVATE_1);
+
+	switch (private_usage)
+	{
+
+		case GRALLOC_USAGE_PRIVATE_0:
+			err = gralloc_alloc_dma_coherent_buffer(dev, size, usage, pHandle);;
+			break;
+		default:
+			err = gralloc_alloc_buffer(dev, w, h, bpp, usage, &stride, pHandle);
+	}
 
 	if (err)
 	{
@@ -168,26 +263,6 @@ static int alloc_device_alloc(alloc_device_t *dev, int w, int h, int format, int
 	}
 
 	private_handle_t *hnd = (private_handle_t *)*pHandle;
-	int private_usage = usage & (GRALLOC_USAGE_PRIVATE_0 | GRALLOC_USAGE_PRIVATE_1);
-
-	switch (private_usage)
-	{
-		case 0:
-			hnd->yuv_info = MALI_YUV_BT601_NARROW;
-			break;
-
-		case GRALLOC_USAGE_PRIVATE_1:
-			hnd->yuv_info = MALI_YUV_BT601_WIDE;
-			break;
-
-		case GRALLOC_USAGE_PRIVATE_0:
-			hnd->yuv_info = MALI_YUV_BT709_NARROW;
-			break;
-
-		case (GRALLOC_USAGE_PRIVATE_0 | GRALLOC_USAGE_PRIVATE_1):
-			hnd->yuv_info = MALI_YUV_BT709_WIDE;
-			break;
-	}
 
 	hnd->width = w;
 	hnd->height = h;
