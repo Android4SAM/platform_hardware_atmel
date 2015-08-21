@@ -40,6 +40,12 @@
 #define MALI_GRALLOC_HARDWARE_MAX_STR_LEN 8
 #define NUM_FB_BUFFERS 2
 
+#ifdef __cplusplus
+struct private_handle_t;
+#else
+typedef struct private_handle_t private_handle_t;
+#endif
+
 typedef enum
 {
 	MALI_YUV_NO_INFO,
@@ -76,15 +82,12 @@ struct private_module_t
 		PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
 	};
 
-	/* default constructor */
-	private_module_t();
-};
 
 #ifdef __cplusplus
-struct private_handle_t;
-#else
-typedef struct private_handle_t private_handle_t;
+	/* default constructor */
+	private_module_t();
 #endif
+};
 
 typedef struct {
         unsigned busAddress;
