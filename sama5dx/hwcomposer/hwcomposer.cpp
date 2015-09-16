@@ -618,6 +618,9 @@ update_display_locked(hwc_context_t * ctx, int disp, hwc_display_contents_1_t * 
                 ret = drmModeSetCrtc(ctx->drm_fd, kdisp->crtc_id, fb, 0, 0,
                         &kdisp->con->connector_id, 1, kdisp->mode);
 
+		/* Wait for base layer stable */
+		usleep(100);
+
                 if (ret) {
                     ALOGE("  drmModeSetCrtc failed (%d)", errno);
                     return ret;
