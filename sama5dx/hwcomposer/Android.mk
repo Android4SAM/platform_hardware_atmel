@@ -19,7 +19,7 @@ LOCAL_PATH := $(call my-dir)
 # hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
 include $(CLEAR_VARS)
 
-GRALLOC_PATH := ../gralloc
+GRALLOC_PATH := $(TOP)/hardware/atmel/sama5dx/gralloc
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_SHARED_LIBRARIES := liblog libdrm libhardware libsync libcutils
 #libion
