@@ -227,7 +227,7 @@ static int alloc_device_alloc(alloc_device_t *dev, int w, int h, int format, int
 			bpp = 16;
 			break;
 		case HAL_PIXEL_FORMAT_YV12:
-			bpp = 16;
+			bpp = 12;
 			break;
 		default:
 			return -EINVAL;

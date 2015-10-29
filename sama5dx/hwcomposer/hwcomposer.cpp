@@ -495,7 +495,7 @@ create_drm_fb(hwc_context_t * ctx, private_handle_t const *hnd, uint32_t * fb, u
     if (fourcc == DRM_FORMAT_NV21) {
         bo[1] = bo[0];
         pitch[0] = width;
-        pitch[1] = width * 2;
+        pitch[1] = width;
         offset[1] = width * height;
     } else {
         int bpp;
