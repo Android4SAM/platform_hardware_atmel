@@ -39,7 +39,7 @@
 
 #include "SamSensorBase.h"
 
-
+#define SAMSENSOR_PATH "/dev/video0"
 namespace android {
 
 class SamCamera;

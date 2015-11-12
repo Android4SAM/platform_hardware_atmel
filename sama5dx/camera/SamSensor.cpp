@@ -41,9 +41,9 @@ status_t SamSensor::init()
 {
     int ret = NO_ERROR;
 
-    mCamFd = open("/dev/video1", O_RDWR);
+    mCamFd = open(SAMSENSOR_PATH, O_RDWR);
     if (mCamFd < 0) {
-        ALOGE("ERR(%s):Cannot open /dev/video1 (error : %s)\n", __FUNCTION__, strerror(errno));
+        ALOGE("ERR(%s):Cannot open sensor (error : %s)\n", __FUNCTION__, strerror(errno));
         return -1;
     }
     mCamId = 0;
@@ -66,9 +66,9 @@ SamSensor::SamSensor(SamCamera* camera_hal)
     int fd;
     ALOGV("%s", __FUNCTION__);
     
-    fd = open("/dev/video1", O_RDWR);
+    fd = open(SAMSENSOR_PATH, O_RDWR);
     if (fd < 0) {
-        ALOGE("ERR(%s):open /dev/video1 failed", __FUNCTION__);
+        ALOGE("ERR(%s):open sensor failed", __FUNCTION__);
         mHasRealHardware = false;
         return;
     }
