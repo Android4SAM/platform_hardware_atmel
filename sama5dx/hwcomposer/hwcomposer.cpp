@@ -35,6 +35,7 @@ static const struct hwc_fourcc to_fourcc[] = {
     {HAL_PIXEL_FORMAT_RGB_888, DRM_FORMAT_RGB888},
     {HAL_PIXEL_FORMAT_RGB_565, DRM_FORMAT_RGB565},
     {HAL_PIXEL_FORMAT_YV12, DRM_FORMAT_NV21},
+    {HAL_PIXEL_FORMAT_YCbCr_422_I, DRM_FORMAT_YUV422}
 };
 
 
@@ -497,6 +498,15 @@ create_drm_fb(hwc_context_t * ctx, private_handle_t const *hnd, uint32_t * fb, u
         pitch[0] = width;
         pitch[1] = width;
         offset[1] = width * height;
+	}
+    else if (fourcc == DRM_FORMAT_YUV422) {
+        pitch[0] = width;
+        pitch[1] = pitch[0] / 2;
+        offset[1] = pitch[0] * height;
+        bo[1] = bo[0];
+        bo[2] = bo[1];
+        pitch[2] = pitch[1];
+        offset[2] = offset[1] + pitch[1] * height;
     } else {
         int bpp;
                
