@@ -35,7 +35,7 @@ static const struct hwc_fourcc to_fourcc[] = {
     {HAL_PIXEL_FORMAT_RGB_888, DRM_FORMAT_RGB888},
     {HAL_PIXEL_FORMAT_RGB_565, DRM_FORMAT_RGB565},
     {HAL_PIXEL_FORMAT_YV12, DRM_FORMAT_NV21},
-    {HAL_PIXEL_FORMAT_YCbCr_422_I, DRM_FORMAT_YUV422}
+    {HAL_PIXEL_FORMAT_YCbCr_422_I, DRM_FORMAT_YUYV}
 };
 
 
@@ -515,6 +515,7 @@ create_drm_fb(hwc_context_t * ctx, private_handle_t const *hnd, uint32_t * fb, u
                                bpp = 3;
                                break;
                        case DRM_FORMAT_RGB565:
+                       case DRM_FORMAT_YUYV:
                                bpp = 2;
                                break;
                        case DRM_FORMAT_ABGR8888:
