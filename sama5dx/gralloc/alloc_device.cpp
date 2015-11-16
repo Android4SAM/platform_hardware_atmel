@@ -220,6 +220,7 @@ static int alloc_device_alloc(alloc_device_t *dev, int w, int h, int format, int
 			break;
 
 		case HAL_PIXEL_FORMAT_RGB_565:
+		case HAL_PIXEL_FORMAT_YCbCr_422_I:
 #if PLATFORM_SDK_VERSION < 19
 		case HAL_PIXEL_FORMAT_RGBA_5551:
 		case HAL_PIXEL_FORMAT_RGBA_4444:
